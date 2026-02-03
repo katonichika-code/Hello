@@ -14,13 +14,16 @@ This file provides guidance for AI assistants working with this repository.
 Hello/
 ├── src/                      # Frontend (React + TypeScript)
 │   ├── api/
-│   │   └── client.ts         # API client for backend communication
+│   │   ├── client.ts         # API client for backend communication
+│   │   └── csvParser.ts      # CSV format detection & parsing (A/B formats)
 │   ├── components/
-│   │   ├── CsvImport.tsx     # CSV file import component
+│   │   ├── CsvImport.tsx     # CSV file import with preflight preview
 │   │   ├── ManualEntry.tsx   # Manual cash entry form
 │   │   ├── MonthFilter.tsx   # Month selection filter
 │   │   ├── SankeyDiagram.tsx # d3-sankey visualization
 │   │   └── TransactionList.tsx # Transaction table with inline editing
+│   ├── scripts/
+│   │   └── csv-check.ts      # CSV parser verification script
 │   ├── App.tsx               # Main application component
 │   ├── App.css               # Application styles
 │   ├── index.css             # Global styles
@@ -62,6 +65,9 @@ npx tsc --noEmit
 # Run API smoke tests (requires API server running)
 npm run smoke
 
+# Run CSV parser verification
+npm run csvcheck
+
 # Build for production
 npm run build
 ```
@@ -76,7 +82,7 @@ npm run build
 ### Frontend
 - **Framework**: React 19 + TypeScript
 - **Build Tool**: Vite
-- **CSV Parsing**: PapaParse
+- **CSV Parsing**: Custom parser with encoding-japanese (Shift_JIS support)
 - **Visualization**: d3-sankey
 
 ### Backend
@@ -129,6 +135,17 @@ npm run build
 - CSV imports use account "card", manual entries use "cash"
 - Default category is "Uncategorized"
 - Server imports use `.js` extension (NodeNext module resolution)
+
+### CSV Import Formats
+
+**Format A (Standard):**
+- Header row: `date,amount,description`
+- Date format: `YYYY-MM-DD`
+
+**Format B (Japanese Bank/Card):**
+- First row is metadata (customer info) - **NEVER store or display**
+- Data rows from row 2: `YYYY/MM/DD,merchant,amount,...`
+- Supports Shift_JIS/CP932 encoding
 
 ### Do's
 - Follow existing code patterns

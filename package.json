@@ -10,13 +10,15 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "smoke": "tsx server/scripts/smoke-test.ts"
+    "smoke": "tsx server/scripts/smoke-test.ts",
+    "csvcheck": "tsx src/scripts/csv-check.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",
     "d3": "^7.9.0",
     "d3-sankey": "^0.12.3",
+    "encoding-japanese": "^2.2.0",
     "express": "^5.2.1",
     "papaparse": "^5.5.3",
     "react": "^19.2.0",

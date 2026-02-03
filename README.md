@@ -48,9 +48,11 @@ Passed: 7, Failed: 0
 - Sankey diagram showing money flow (Account → Category)
 - All data stored locally in SQLite
 
-## CSV Format
+## CSV Formats
 
-The app expects CSV files with **exactly these column headers**:
+The app supports two CSV formats with automatic detection.
+
+### Format A: Standard CSV
 
 | Column | Format | Example |
 |--------|--------|---------|
@@ -58,7 +60,7 @@ The app expects CSV files with **exactly these column headers**:
 | amount | Positive integer | 1500 |
 | description | Text | Grocery store |
 
-**Example CSV file:**
+**Example:**
 ```csv
 date,amount,description
 2024-01-15,1500,Grocery store
@@ -66,10 +68,43 @@ date,amount,description
 2024-01-17,3000,Restaurant
 ```
 
+### Format B: Japanese Bank/Card CSV
+
+Supports CSV exports from Japanese banks and credit card companies.
+
+- **Encoding**: UTF-8 or Shift_JIS (CP932) - auto-detected
+- **First row**: Metadata (customer info) - **automatically ignored, never stored**
+- **Data rows**: 7 columns starting from row 2
+
+| Column | Content | Example |
+|--------|---------|---------|
+| 1 | Date (YYYY/MM/DD) | 2025/12/01 |
+| 2 | Merchant name | セブン－イレブン |
+| 3 | Amount | 159 |
+| 4-7 | Other fields | (ignored) |
+
+**Example** (first row is metadata, masked for privacy):
+```csv
+CUSTOMER_NAME,****-****-****-1234,VISA
+2025/12/01,セブン－イレブン,159,１,１,159,
+2025/12/02,スターバックス,550,１,１,550,
+2025/12/03,ローソン,298,１,１,298,
+```
+
 **Important notes:**
-- Enter amounts as **positive integers** (they are converted to negative for storage)
+- The metadata row (customer name, card number) is **never stored or displayed**
+- Amounts are converted to negative (expenses) automatically
 - Duplicate detection uses SHA-256 hash of `date + amount + description`
-- CSV imports are assigned account = "card", category = "Uncategorized"
+- All imports are assigned account = "card", category = "Uncategorized"
+
+### Preflight Preview
+
+When you select a CSV file, the app shows:
+1. Detected format (Standard or Japanese Bank/Card)
+2. Number of transactions to import
+3. Preview of first 3 transactions
+
+Click "Import" to proceed or "Cancel" to select a different file.
 
 ## Usage
 
@@ -115,11 +150,22 @@ npx tsc --noEmit
 
 ### CSV import not working
 
-Verify your CSV has:
+**For Format A (Standard):**
 1. Header row with exact names: `date,amount,description`
 2. Date format: `YYYY-MM-DD` (e.g., `2024-01-15`)
 3. Amount: positive integer (no decimals, no currency symbols)
-4. No empty rows
+
+**For Format B (Japanese Bank):**
+1. First row should be metadata (will be ignored)
+2. Data rows start from row 2
+3. Date format: `YYYY/MM/DD` in column 1
+4. Merchant name in column 2
+5. Amount in column 3
+
+Run the CSV parser check to verify parsing logic:
+```bash
+npm run csvcheck
+```
 
 ### Smoke test failing
 
@@ -140,6 +186,7 @@ npm run smoke
 | `npm run dev:web` | Start frontend only (port 5173) |
 | `npm run dev:api` | Start API only (port 8787) |
 | `npm run smoke` | Run API smoke tests |
+| `npm run csvcheck` | Verify CSV parser (both formats) |
 | `npm run build` | Build for production |
 | `npm run lint` | Run ESLint |
 
@@ -147,8 +194,12 @@ npm run smoke
 
 ```
 ├── src/                      # Frontend (React + TypeScript + Vite)
-│   ├── api/client.ts         # API client
+│   ├── api/
+│   │   ├── client.ts         # API client
+│   │   └── csvParser.ts      # CSV format detection & parsing
 │   ├── components/           # React components
+│   ├── scripts/
+│   │   └── csv-check.ts      # CSV parser verification
 │   └── App.tsx               # Main app
 ├── server/                   # Backend (Express + TypeScript)
 │   ├── src/
