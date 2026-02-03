@@ -224,6 +224,6 @@ npm run smoke
 
 ## Tech Stack
 
-- **Frontend**: React 19, TypeScript, Vite, d3-sankey, PapaParse
+- **Frontend**: React 19, TypeScript, Vite, d3-sankey, encoding-japanese
 - **Backend**: Node.js, Express 5, TypeScript, tsx
 - **Database**: SQLite via better-sqlite3
