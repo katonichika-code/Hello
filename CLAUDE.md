@@ -29,8 +29,10 @@ Hello/
 │   ├── src/
 │   │   ├── index.ts          # Express server with API endpoints
 │   │   └── db.ts             # SQLite database setup and helpers
+│   ├── scripts/
+│   │   └── smoke-test.ts     # API smoke tests
 │   ├── prisma/
-│   │   └── dev.db            # SQLite database file (generated)
+│   │   └── dev.db            # SQLite database file (auto-created)
 │   └── tsconfig.json         # TypeScript config for server
 ├── package.json              # Dependencies and scripts
 ├── vite.config.ts            # Vite configuration
@@ -56,6 +58,9 @@ npm run dev:api
 
 # Type check
 npx tsc --noEmit
+
+# Run API smoke tests (requires API server running)
+npm run smoke
 
 # Build for production
 npm run build
@@ -120,9 +125,10 @@ npm run build
 ### Key Conventions
 
 - Expenses are stored as **negative** amounts
-- Hash is SHA-256 of `date + amount + description`
+- Hash is SHA-256 of `date + positive_amount + description` (always use positive amount for hash)
 - CSV imports use account "card", manual entries use "cash"
 - Default category is "Uncategorized"
+- Server imports use `.js` extension (NodeNext module resolution)
 
 ### Do's
 - Follow existing code patterns

@@ -9,7 +9,8 @@
     "dev:api": "tsx watch server/src/index.ts",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "smoke": "tsx server/scripts/smoke-test.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
