@@ -1,167 +1,157 @@
-# CLAUDE.md - AI Assistant Guidelines for Hello
+# CLAUDE.md - AI Assistant Guidelines for Kakeibo
 
 This file provides guidance for AI assistants working with this repository.
 
 ## Repository Overview
 
-- **Repository**: Hello
+- **Repository**: Kakeibo (Personal Finance App)
 - **Owner**: katonichika-code
-- **Status**: New project (initialized)
+- **Status**: MVP complete
 
 ## Project Structure
 
 ```
 Hello/
-├── CLAUDE.md          # AI assistant guidelines (this file)
-└── .git/              # Git repository
+├── src/                      # Frontend (React + TypeScript)
+│   ├── api/
+│   │   └── client.ts         # API client for backend communication
+│   ├── components/
+│   │   ├── CsvImport.tsx     # CSV file import component
+│   │   ├── ManualEntry.tsx   # Manual cash entry form
+│   │   ├── MonthFilter.tsx   # Month selection filter
+│   │   ├── SankeyDiagram.tsx # d3-sankey visualization
+│   │   └── TransactionList.tsx # Transaction table with inline editing
+│   ├── App.tsx               # Main application component
+│   ├── App.css               # Application styles
+│   ├── index.css             # Global styles
+│   └── main.tsx              # Entry point
+├── server/                   # Backend (Express + TypeScript)
+│   ├── src/
+│   │   ├── index.ts          # Express server with API endpoints
+│   │   └── db.ts             # SQLite database setup and helpers
+│   ├── prisma/
+│   │   └── dev.db            # SQLite database file (generated)
+│   └── tsconfig.json         # TypeScript config for server
+├── package.json              # Dependencies and scripts
+├── vite.config.ts            # Vite configuration
+├── tsconfig.json             # TypeScript config for frontend
+├── README.md                 # User documentation
+└── CLAUDE.md                 # AI assistant guidelines (this file)
 ```
 
-## Getting Started
-
-### Prerequisites
-
-- Git installed and configured
-- Node.js (if adding JavaScript/TypeScript code)
-- Any other dependencies as the project evolves
-
-### Initial Setup
+## Quick Commands
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd Hello
+# Install dependencies
+npm install
 
-# Install dependencies (when applicable)
-npm install  # or yarn, pnpm as configured
-```
+# Run both frontend and backend
+npm run dev
 
-## Development Workflow
+# Run frontend only
+npm run dev:web
 
-### Branch Naming Conventions
+# Run backend only
+npm run dev:api
 
-- Feature branches: `feature/<description>`
-- Bug fixes: `fix/<description>`
-- Claude Code branches: `claude/<description>-<session-id>`
+# Type check
+npx tsc --noEmit
 
-### Commit Message Guidelines
-
-- Use clear, descriptive commit messages
-- Start with a verb in present tense (Add, Fix, Update, Remove, Refactor)
-- Keep the first line under 72 characters
-- Add detailed description in the body when necessary
-
-Example:
-```
-Add user authentication module
-
-- Implement JWT token generation
-- Add login/logout endpoints
-- Include password hashing with bcrypt
-```
-
-### Code Review Process
-
-1. Create a feature branch from main
-2. Make changes and commit
-3. Push branch and create pull request
-4. Request review from team members
-5. Address feedback and merge when approved
-
-## Coding Conventions
-
-### General Guidelines
-
-- Write clean, readable, and maintainable code
-- Follow the principle of least surprise
-- Keep functions small and focused
-- Use meaningful variable and function names
-- Add comments only when the code isn't self-explanatory
-
-### File Organization
-
-- Group related files together
-- Use consistent naming conventions
-- Keep configuration files in the root directory
-- Place source code in `src/` directory (when applicable)
-
-## AI Assistant Instructions
-
-### When Working on This Repository
-
-1. **Read First**: Always read existing files before making modifications
-2. **Understand Context**: Review related files and understand the broader context
-3. **Minimal Changes**: Make only the changes necessary to accomplish the task
-4. **Test**: Verify changes work as expected before committing
-5. **Document**: Update documentation when adding new features
-
-### Do's
-
-- Follow existing code style and conventions
-- Write clear commit messages
-- Keep changes focused and atomic
-- Ask for clarification when requirements are unclear
-
-### Don'ts
-
-- Don't introduce unnecessary dependencies
-- Don't over-engineer simple solutions
-- Don't make changes outside the scope of the request
-- Don't commit sensitive information (API keys, passwords, etc.)
-
-### Error Handling
-
-- When encountering errors, provide the full error message
-- Suggest potential solutions based on the error context
-- If blocked, explain what's needed to proceed
-
-## Testing
-
-### Running Tests
-
-```bash
-# Run all tests (when test framework is configured)
-npm test
-
-# Run specific test file
-npm test -- <filename>
-```
-
-### Writing Tests
-
-- Write tests for new functionality
-- Ensure tests are deterministic and isolated
-- Use descriptive test names that explain what is being tested
-
-## Build and Deployment
-
-### Building the Project
-
-```bash
-# Build for production (when applicable)
+# Build for production
 npm run build
 ```
 
-### Environment Variables
+## Ports
 
-- Store environment-specific configuration in `.env` files
-- Never commit `.env` files with sensitive data
-- Document required environment variables in `.env.example`
+- Frontend: http://localhost:5173
+- API Server: http://localhost:8787
+
+## Architecture
+
+### Frontend
+- **Framework**: React 19 + TypeScript
+- **Build Tool**: Vite
+- **CSV Parsing**: PapaParse
+- **Visualization**: d3-sankey
+
+### Backend
+- **Framework**: Express.js + TypeScript
+- **Database**: SQLite via better-sqlite3
+- **Runner**: tsx (TypeScript execution)
+
+### Data Flow
+1. Frontend sends requests to API at localhost:8787
+2. API interacts with SQLite database
+3. All data stored locally in `server/prisma/dev.db`
+
+## Database Schema
+
+**Transaction Table:**
+| Column | Type | Description |
+|--------|------|-------------|
+| id | TEXT | Primary key (cuid) |
+| date | TEXT | YYYY-MM-DD format |
+| amount | INTEGER | JPY, negative for expenses |
+| category | TEXT | User-defined category |
+| account | TEXT | "card" or "cash" |
+| description | TEXT | Transaction description |
+| hash | TEXT | Unique SHA-256 for deduplication |
+| createdAt | TEXT | ISO timestamp |
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /health | Health check |
+| GET | /transactions | Get all (optional ?month=YYYY-MM) |
+| POST | /transactions | Create single transaction |
+| POST | /transactions/bulk | Bulk import transactions |
+| PATCH | /transactions/:id | Update category only |
+
+## AI Assistant Instructions
+
+### When Modifying This Project
+
+1. **Read existing code** before making changes
+2. **Maintain the architecture**: Frontend calls API, API accesses DB
+3. **Keep it simple**: This is an MVP, avoid over-engineering
+4. **Test locally**: Always verify with `npm run dev`
+
+### Key Conventions
+
+- Expenses are stored as **negative** amounts
+- Hash is SHA-256 of `date + amount + description`
+- CSV imports use account "card", manual entries use "cash"
+- Default category is "Uncategorized"
+
+### Do's
+- Follow existing code patterns
+- Keep TypeScript types consistent
+- Update README.md for user-facing changes
+- Update CLAUDE.md for structural changes
+
+### Don'ts
+- Don't add cloud services or authentication
+- Don't change the database schema without updating all related code
+- Don't introduce new frameworks unnecessarily
+- Don't remove the local-only architecture
 
 ## Troubleshooting
 
-### Common Issues
+### API not responding
+Check if port 8787 is in use:
+```bash
+lsof -i :8787
+```
 
-1. **Dependencies not installing**: Try deleting `node_modules` and `package-lock.json`, then run `npm install` again
+### Database issues
+Delete and recreate:
+```bash
+rm server/prisma/dev.db
+npm run dev:api  # Will recreate on startup
+```
 
-2. **Git conflicts**: Pull latest changes, resolve conflicts locally, then push
-
-3. **Build failures**: Check for TypeScript/linting errors, ensure all dependencies are installed
-
-## Resources
-
-- [Git Documentation](https://git-scm.com/doc)
-- [Conventional Commits](https://www.conventionalcommits.org/)
-
----
-
-*This file should be updated as the project evolves to reflect current practices and structure.*
+### TypeScript errors
+```bash
+npx tsc --noEmit
+```

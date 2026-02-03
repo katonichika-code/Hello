@@ -1,73 +1,91 @@
-# React + TypeScript + Vite
+# Kakeibo - Personal Finance App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A local-only personal expense tracking application with CSV import and Sankey diagram visualization.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- CSV import for card transactions
+- Manual cash expense entry
+- Transaction list with inline category editing
+- Month-based filtering
+- Sankey diagram showing money flow (Account -> Category)
+- All data stored locally in SQLite
 
-## React Compiler
+## Requirements
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js 18+
+- npm
 
-## Expanding the ESLint configuration
+## Installation
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Running the App
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+This starts both:
+- **Frontend**: http://localhost:5173
+- **API Server**: http://localhost:8787
+
+## CSV Format
+
+The app accepts CSV files with these columns:
+
+| Column | Format | Description |
+|--------|--------|-------------|
+| date | YYYY-MM-DD | Transaction date |
+| amount | Integer | Expense amount (positive number) |
+| description | Text | Transaction description |
+
+Example CSV:
+```csv
+date,amount,description
+2024-01-15,1500,Grocery store
+2024-01-16,800,Coffee shop
+2024-01-17,3000,Restaurant
+```
+
+## Usage
+
+1. **Import CSV**: Click "Choose File" in the Import CSV section and select a CSV file
+2. **Add Manual Entry**: Fill out the form to add cash expenses
+3. **Edit Categories**: Click on any category in the transaction list to edit it
+4. **Filter by Month**: Use the dropdown to filter transactions by month
+5. **View Sankey**: The diagram shows money flow from accounts to categories
+
+## Architecture
+
+```
+├── src/                    # Frontend (React + TypeScript)
+│   ├── api/client.ts       # API client
+│   ├── components/         # React components
+│   └── App.tsx             # Main app
+├── server/                 # Backend (Express + TypeScript)
+│   ├── src/
+│   │   ├── index.ts        # API server
+│   │   └── db.ts           # SQLite database
+│   └── prisma/
+│       └── dev.db          # SQLite database file
+└── package.json
+```
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /health | Health check |
+| GET | /transactions | Get all transactions (optional: ?month=YYYY-MM) |
+| POST | /transactions | Create single transaction |
+| POST | /transactions/bulk | Bulk create transactions |
+| PATCH | /transactions/:id | Update transaction category |
+
+## Tech Stack
+
+- **Frontend**: React, TypeScript, Vite, d3-sankey, PapaParse
+- **Backend**: Node.js, Express, TypeScript
+- **Database**: SQLite (via better-sqlite3)
