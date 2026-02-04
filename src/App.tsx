@@ -19,7 +19,7 @@ function App() {
       const data = await getTransactions(selectedMonth || undefined);
       setTransactions(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load transactions');
+      setError(err instanceof Error ? err.message : '取引データの読み込みに失敗しました');
     } finally {
       setLoading(false);
     }
@@ -36,7 +36,7 @@ function App() {
   return (
     <div className="app">
       <header>
-        <h1>Kakeibo - Personal Finance</h1>
+        <h1>家計簿 - Kakeibo</h1>
       </header>
 
       <main>
@@ -57,11 +57,11 @@ function App() {
 
             <div className="transactions-section">
               <h3>
-                Transactions{' '}
-                {transactions.length > 0 && `(${transactions.length})`}
+                取引一覧{' '}
+                {transactions.length > 0 && `(${transactions.length}件)`}
               </h3>
               {loading ? (
-                <p>Loading...</p>
+                <p>読み込み中...</p>
               ) : (
                 <TransactionList
                   transactions={transactions}

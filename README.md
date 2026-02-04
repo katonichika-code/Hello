@@ -1,229 +1,203 @@
-# Kakeibo - Personal Finance App
+# Kakeibo - 家計簿アプリ
 
-A local-only personal expense tracking application with CSV import and Sankey diagram visualization.
+ローカル専用の個人家計簿アプリ。CSV取り込み対応、サンキーダイアグラムで支出フローを可視化。
 
-## Quick Start
-
-### Requirements
-
-- **Node.js 18+** (check with `node -v`)
-- npm (comes with Node.js)
-
-### Install & Run
+## クイックスタート
 
 ```bash
-# 1. Install dependencies
+# 依存関係をインストール
 npm install
 
-# 2. Start the app (frontend + API)
+# アプリを起動（フロントエンド + API）
 npm run dev
 ```
 
-Open http://localhost:5173 in your browser.
+ブラウザで http://localhost:5173 を開く
 
-### Verify Installation
+## 機能
 
-Run the smoke test to verify the API is working:
+- **CSV取り込み**: カード明細CSVを取り込み（重複検出あり）
+- **自動仕訳**: 加盟店名からカテゴリを自動推定
+- **手動入力**: 現金支出を手入力
+- **カテゴリ編集**: 一覧表でクリックして編集
+- **月別フィルタ**: 対象月で絞り込み
+- **サンキーダイアグラム**: 支払元 → カテゴリの支出フロー
 
-```bash
-# In a separate terminal (while npm run dev is running)
-npm run smoke
-```
+## CSV対応フォーマット
 
-Expected output:
-```
-✓ GET /health returns ok:true
-✓ GET /transactions returns array
-✓ POST /transactions creates transaction
-...
-Passed: 7, Failed: 0
-```
+### Format A: 標準CSV
 
-## Features
-
-- CSV import for card transactions (with duplicate detection)
-- Manual cash expense entry
-- Transaction list with inline category editing
-- Month-based filtering
-- Sankey diagram showing money flow (Account → Category)
-- All data stored locally in SQLite
-
-## CSV Formats
-
-The app supports two CSV formats with automatic detection.
-
-### Format A: Standard CSV
-
-| Column | Format | Example |
-|--------|--------|---------|
-| date | YYYY-MM-DD | 2024-01-15 |
-| amount | Positive integer | 1500 |
-| description | Text | Grocery store |
-
-**Example:**
 ```csv
 date,amount,description
-2024-01-15,1500,Grocery store
-2024-01-16,800,Coffee shop
-2024-01-17,3000,Restaurant
+2024-01-15,1500,スーパー
+2024-01-16,800,コーヒー
 ```
 
-### Format B: Japanese Bank/Card CSV
+- 日付: `YYYY-MM-DD`
+- 金額: 正の整数
+- 内容: テキスト
 
-Supports CSV exports from Japanese banks and credit card companies.
+### Format B: 銀行・カード明細CSV
 
-- **Encoding**: UTF-8 or Shift_JIS (CP932) - auto-detected
-- **First row**: Metadata (customer info) - **automatically ignored, never stored**
-- **Data rows**: 7 columns starting from row 2
+日本の銀行・カード会社からのCSVエクスポートに対応。
 
-| Column | Content | Example |
-|--------|---------|---------|
-| 1 | Date (YYYY/MM/DD) | 2025/12/01 |
-| 2 | Merchant name | セブン－イレブン |
-| 3 | Amount | 159 |
-| 4-7 | Other fields | (ignored) |
+- **文字コード**: UTF-8 または Shift_JIS（自動判定）
+- **1行目**: 顧客情報（無視・保存されません）
+- **2行目以降**: 取引データ
 
-**Example** (first row is metadata, masked for privacy):
 ```csv
-CUSTOMER_NAME,****-****-****-1234,VISA
+顧客名,****-****-****-1234,VISA
 2025/12/01,セブン－イレブン,159,１,１,159,
 2025/12/02,スターバックス,550,１,１,550,
-2025/12/03,ローソン,298,１,１,298,
 ```
 
-**Important notes:**
-- The metadata row (customer name, card number) is **never stored or displayed**
-- Amounts are converted to negative (expenses) automatically
-- Duplicate detection uses SHA-256 hash of `date + amount + description`
-- All imports are assigned account = "card", category = "Uncategorized"
+**重要**: 1行目のカード番号や顧客名は絶対に保存・表示されません。
 
-### Preflight Preview
+## 自動仕訳（ルールベース）
 
-When you select a CSV file, the app shows:
-1. Detected format (Standard or Japanese Bank/Card)
-2. Number of transactions to import
-3. Preview of first 3 transactions
+CSV取り込み時、加盟店名から自動的にカテゴリを推定します。
 
-Click "Import" to proceed or "Cancel" to select a different file.
+| カテゴリ | キーワード例 |
+|---------|-------------|
+| 食費 | セブン、ファミマ、スタバ、マクドナルド、すき家 |
+| 交通費 | JR、メトロ、Suica、タクシー、ガソリン |
+| 日用品 | マツキヨ、ダイソー、ニトリ、ユニクロ |
+| 娯楽 | 映画、ゲーム、カラオケ、ディズニー |
+| サブスク | Netflix、Spotify、docomo、Amazon Prime |
+| 医療 | 病院、クリニック、薬局 |
+| その他 | 郵便、保険、税金 |
+| 未分類 | 上記に該当しない場合 |
 
-## Usage
-
-1. **Import CSV**: Click "Choose File" and select a CSV file
-2. **Add Cash Entry**: Use the form on the left to add manual cash expenses
-3. **Edit Categories**: Click any category in the table to edit inline
-4. **Filter by Month**: Use the dropdown to filter transactions
-5. **View Sankey**: The diagram updates automatically based on filtered data
-
-## Troubleshooting
-
-### Port already in use
-
-If port 5173 or 8787 is in use:
+**ルール評価スクリプト**:
 
 ```bash
-# Find and kill process on port 8787 (API)
+# CSVファイルでカバレッジを確認
+npm run ruleeval -- --file <path-to-csv>
+```
+
+出力例:
+```
+=== ルール評価結果 ===
+総取引数: 150
+ユニーク加盟店数: 45
+--- カバレッジ ---
+自動分類: 127件 (84.7%)
+未分類: 23件 (15.3%)
+```
+
+未分類の加盟店は一覧で表示され、必要に応じてルールを追加できます。
+
+## 使い方
+
+1. **CSV取り込み**: ファイルを選択 → プレビュー確認 → 「取り込む」
+2. **現金支出追加**: 左のフォームで日付・金額・内容を入力
+3. **カテゴリ編集**: 一覧表のカテゴリをクリックして編集
+4. **月別表示**: 「対象月」で絞り込み
+
+**ヒント**: 未分類（黄色背景）の行をクリックしてカテゴリを修正しましょう。
+
+## トラブルシューティング
+
+### ポートが使用中
+
+```bash
+# APIポート (8787) を解放
 lsof -i :8787 | grep LISTEN | awk '{print $2}' | xargs kill
 
-# Find and kill process on port 5173 (Frontend)
+# フロントエンドポート (5173) を解放
 lsof -i :5173 | grep LISTEN | awk '{print $2}' | xargs kill
 ```
 
-### API server not starting
+### データベースをリセット
 
-Check for errors:
-```bash
-npm run dev:api
-```
-
-If you see database errors, delete and recreate:
 ```bash
 rm -f server/prisma/dev.db server/prisma/dev.db-*
 npm run dev:api
 ```
 
-### TypeScript errors
+### TypeScript エラー
 
-Run type check:
 ```bash
 npx tsc --noEmit
 ```
 
-### CSV import not working
+### CSV取り込みの確認
 
-**For Format A (Standard):**
-1. Header row with exact names: `date,amount,description`
-2. Date format: `YYYY-MM-DD` (e.g., `2024-01-15`)
-3. Amount: positive integer (no decimals, no currency symbols)
-
-**For Format B (Japanese Bank):**
-1. First row should be metadata (will be ignored)
-2. Data rows start from row 2
-3. Date format: `YYYY/MM/DD` in column 1
-4. Merchant name in column 2
-5. Amount in column 3
-
-Run the CSV parser check to verify parsing logic:
 ```bash
 npm run csvcheck
 ```
 
-### Smoke test failing
+## コマンド一覧
 
-Ensure the API server is running first:
-```bash
-# Terminal 1
-npm run dev:api
+| コマンド | 説明 |
+|---------|------|
+| `npm run dev` | フロントエンド + API 起動 |
+| `npm run dev:web` | フロントエンドのみ (5173) |
+| `npm run dev:api` | APIのみ (8787) |
+| `npm run smoke` | APIスモークテスト |
+| `npm run csvcheck` | CSVパーサー検証 |
+| `npm run ruleeval -- --file <csv>` | 自動仕訳ルール評価 |
+| `npm run build` | 本番ビルド |
 
-# Terminal 2
-npm run smoke
-```
+## 技術スタック
 
-## Available Scripts
+- **Frontend**: React 19, TypeScript, Vite, d3-sankey, encoding-japanese
+- **Backend**: Node.js, Express 5, TypeScript, tsx
+- **Database**: SQLite (better-sqlite3)
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start both frontend and API |
-| `npm run dev:web` | Start frontend only (port 5173) |
-| `npm run dev:api` | Start API only (port 8787) |
-| `npm run smoke` | Run API smoke tests |
-| `npm run csvcheck` | Verify CSV parser (both formats) |
-| `npm run build` | Build for production |
-| `npm run lint` | Run ESLint |
-
-## Architecture
+## アーキテクチャ
 
 ```
 ├── src/                      # Frontend (React + TypeScript + Vite)
 │   ├── api/
-│   │   ├── client.ts         # API client
-│   │   └── csvParser.ts      # CSV format detection & parsing
-│   ├── components/           # React components
-│   ├── scripts/
-│   │   └── csv-check.ts      # CSV parser verification
-│   └── App.tsx               # Main app
+│   │   ├── client.ts         # APIクライアント
+│   │   ├── csvParser.ts      # CSV解析 (Format A/B対応)
+│   │   └── categorizer.ts    # 自動仕訳ルール
+│   ├── components/           # Reactコンポーネント
+│   └── scripts/
+│       ├── csv-check.ts      # CSVパーサー検証
+│       └── rule-eval.ts      # ルール評価スクリプト
 ├── server/                   # Backend (Express + TypeScript)
 │   ├── src/
-│   │   ├── index.ts          # API server
-│   │   └── db.ts             # SQLite database
-│   ├── scripts/
-│   │   └── smoke-test.ts     # API smoke tests
+│   │   ├── index.ts          # APIサーバー
+│   │   └── db.ts             # SQLiteデータベース
 │   └── prisma/
-│       └── dev.db            # SQLite database file (auto-created)
+│       └── dev.db            # SQLiteファイル (自動生成)
 └── package.json
 ```
 
-## API Endpoints
+## API エンドポイント
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | /health | Health check → `{ ok: true }` |
-| GET | /transactions | Get all (optional: `?month=YYYY-MM`) |
-| POST | /transactions | Create single transaction |
-| POST | /transactions/bulk | Bulk import → `{ inserted, skipped }` |
-| PATCH | /transactions/:id | Update category only |
+| Method | Endpoint | 説明 |
+|--------|----------|------|
+| GET | /health | ヘルスチェック |
+| GET | /transactions | 取引一覧 (`?month=YYYY-MM` 対応) |
+| POST | /transactions | 取引作成 |
+| POST | /transactions/bulk | 一括取り込み |
+| PATCH | /transactions/:id | カテゴリ更新 |
 
-## Tech Stack
+---
 
-- **Frontend**: React 19, TypeScript, Vite, d3-sankey, encoding-japanese
-- **Backend**: Node.js, Express 5, TypeScript, tsx
-- **Database**: SQLite via better-sqlite3
+# Kakeibo - Personal Finance App
+
+A local-only personal expense tracking application with CSV import and Sankey diagram visualization.
+
+## Quick Start (English)
+
+```bash
+npm install
+npm run dev
+```
+
+Open http://localhost:5173
+
+## Features
+
+- CSV import for card transactions (with duplicate detection)
+- Rule-based auto-categorization for Japanese merchants
+- Manual cash expense entry
+- Transaction list with inline category editing
+- Month-based filtering
+- Sankey diagram showing money flow (Account → Category)
+
+See Japanese section above for detailed usage.

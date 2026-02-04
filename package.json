@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "smoke": "tsx server/scripts/smoke-test.ts",
-    "csvcheck": "tsx src/scripts/csv-check.ts"
+    "csvcheck": "tsx src/scripts/csv-check.ts",
+    "ruleeval": "tsx src/scripts/rule-eval.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",

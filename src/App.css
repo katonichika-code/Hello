@@ -320,6 +320,63 @@ header h1 {
   font-size: 0.875rem;
 }
 
+/* Uncategorized highlighting */
+.row-uncategorized {
+  background: #fff9e6;
+}
+
+.row-uncategorized:hover {
+  background: #fff3cc;
+}
+
+.uncategorized {
+  color: #b45309;
+  font-weight: 500;
+}
+
+.category-cell .editable.uncategorized {
+  background: #fef3c7;
+  border: 1px dashed #f59e0b;
+}
+
+.category-cell .editable.uncategorized:hover {
+  background: #fde68a;
+}
+
+/* Preflight uncategorized */
+.preview-table td.uncategorized {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+/* Category suggestion in manual entry */
+.category-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+
+.category-suggestion .suggested {
+  color: #059669;
+  font-weight: 500;
+}
+
+.btn-use-suggestion {
+  padding: 0.125rem 0.5rem;
+  font-size: 0.7rem;
+  background: #e5e7eb;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.btn-use-suggestion:hover {
+  background: #d1d5db;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .layout {

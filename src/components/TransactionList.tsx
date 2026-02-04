@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { updateTransactionCategory, type Transaction } from '../api/client';
+import { getAllCategories } from '../api/categorizer';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -11,6 +12,8 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
   const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const categories = getAllCategories();
 
   const formatAmount = (amount: number) => {
     return new Intl.NumberFormat('ja-JP', {
@@ -36,7 +39,7 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
       setEditingId(null);
       onUpdate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
+      setError(err instanceof Error ? err.message : '保存に失敗しました');
     } finally {
       setSaving(false);
     }
@@ -51,7 +54,7 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
   };
 
   if (transactions.length === 0) {
-    return <p className="no-data">No transactions found</p>;
+    return <p className="no-data">取引データがありません</p>;
   }
 
   return (
@@ -60,16 +63,16 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
       <table>
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Amount</th>
-            <th>Category</th>
-            <th>Description</th>
-            <th>Account</th>
+            <th>日付</th>
+            <th>金額</th>
+            <th>カテゴリ</th>
+            <th>内容</th>
+            <th>支払元</th>
           </tr>
         </thead>
         <tbody>
           {transactions.map((t) => (
-            <tr key={t.id}>
+            <tr key={t.id} className={t.category === '未分類' ? 'row-uncategorized' : ''}>
               <td>{t.date}</td>
               <td className={t.amount < 0 ? 'expense' : 'income'}>
                 {formatAmount(t.amount)}
@@ -83,24 +86,30 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
                     onBlur={() => saveCategory(t.id)}
                     onKeyDown={(e) => handleKeyDown(e, t.id)}
                     disabled={saving}
+                    list="category-edit-list"
                     autoFocus
                   />
                 ) : (
                   <span
-                    className="editable"
+                    className={`editable ${t.category === '未分類' ? 'uncategorized' : ''}`}
                     onClick={() => startEdit(t)}
-                    title="Click to edit"
+                    title="クリックして編集"
                   >
                     {t.category}
                   </span>
                 )}
               </td>
               <td>{t.description}</td>
-              <td>{t.account}</td>
+              <td>{t.account === 'card' ? 'カード' : '現金'}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      <datalist id="category-edit-list">
+        {categories.map((cat) => (
+          <option key={cat} value={cat} />
+        ))}
+      </datalist>
     </div>
   );
 }

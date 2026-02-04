@@ -3,21 +3,25 @@ import { bulkCreateTransactions, generateHash } from '../api/client';
 import {
   decodeFileContent,
   parseCsvText,
-  toTransactionInputs,
   type CsvFormat,
   type ParsedTransaction,
 } from '../api/csvParser';
+import { categorize } from '../api/categorizer';
 
 interface ImportResult {
   inserted: number;
   skipped: number;
 }
 
+interface PreflightRow extends ParsedTransaction {
+  predictedCategory: string;
+}
+
 interface PreflightData {
   format: CsvFormat;
   totalRows: number;
-  preview: ParsedTransaction[];
-  allRows: ParsedTransaction[];
+  preview: PreflightRow[];
+  allRows: PreflightRow[];
 }
 
 interface CsvImportProps {
@@ -59,15 +63,21 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
         return;
       }
 
+      // Add predicted categories to all rows
+      const rowsWithCategories: PreflightRow[] = parseResult.rows.map((row) => ({
+        ...row,
+        predictedCategory: categorize(row.description),
+      }));
+
       // Show preflight preview
       setPreflight({
         format: parseResult.format,
-        totalRows: parseResult.rows.length,
-        preview: parseResult.rows.slice(0, 3),
-        allRows: parseResult.rows,
+        totalRows: rowsWithCategories.length,
+        preview: rowsWithCategories.slice(0, 5),
+        allRows: rowsWithCategories,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to read CSV file');
+      setError(err instanceof Error ? err.message : 'CSVファイルの読み込みに失敗しました');
     }
   };
 
@@ -78,8 +88,21 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
     setError(null);
 
     try {
-      // Convert to API format with hashes
-      const transactions = await toTransactionInputs(preflight.allRows, generateHash);
+      // Convert to API format with hashes and predicted categories
+      const transactions = await Promise.all(
+        preflight.allRows.map(async (row) => {
+          const positiveAmount = Math.abs(row.amount);
+          const hash = await generateHash(row.date, positiveAmount, row.description);
+          return {
+            date: row.date,
+            amount: -positiveAmount, // Expenses are negative
+            category: row.predictedCategory,
+            account: 'card' as const,
+            description: row.description,
+            hash,
+          };
+        })
+      );
 
       // Send to API
       const importResult = await bulkCreateTransactions(transactions);
@@ -87,7 +110,7 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
       setPreflight(null);
       onImportComplete();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed');
+      setError(err instanceof Error ? err.message : '取り込みに失敗しました');
     } finally {
       setImporting(false);
       if (fileInputRef.current) {
@@ -109,9 +132,9 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
 
   return (
     <div className="csv-import">
-      <h3>Import CSV</h3>
+      <h3>CSV取り込み</h3>
       <p className="csv-format">
-        Supports: Standard CSV or Japanese bank/card CSV
+        対応: 標準CSV / 銀行・カード明細CSV
       </p>
 
       <input
@@ -126,22 +149,23 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
       {preflight && (
         <div className="preflight">
           <div className="preflight-header">
-            <strong>Format detected:</strong>{' '}
-            {preflight.format === 'A' ? 'Standard' : 'Japanese Bank/Card'}
+            <strong>検出フォーマット:</strong>{' '}
+            {preflight.format === 'A' ? '標準' : '銀行・カード明細'}
           </div>
           <div className="preflight-count">
-            <strong>Transactions to import:</strong> {preflight.totalRows}
+            <strong>取り込み件数:</strong> {preflight.totalRows}件
           </div>
 
           {preflight.preview.length > 0 && (
             <div className="preflight-preview">
-              <strong>Preview (first {preflight.preview.length}):</strong>
+              <strong>プレビュー (先頭{preflight.preview.length}件):</strong>
               <table className="preview-table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Amount</th>
-                    <th>Description</th>
+                    <th>日付</th>
+                    <th>金額</th>
+                    <th>内容</th>
+                    <th>推定カテゴリ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -150,6 +174,9 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
                       <td>{row.date}</td>
                       <td className="expense">{formatAmount(row.amount)}</td>
                       <td>{row.description}</td>
+                      <td className={row.predictedCategory === '未分類' ? 'uncategorized' : ''}>
+                        {row.predictedCategory}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -163,14 +190,14 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
               disabled={importing}
               className="btn-import"
             >
-              {importing ? 'Importing...' : 'Import'}
+              {importing ? '取り込み中...' : '取り込む'}
             </button>
             <button
               onClick={handleCancel}
               disabled={importing}
               className="btn-cancel"
             >
-              Cancel
+              キャンセル
             </button>
           </div>
         </div>
@@ -178,7 +205,7 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
 
       {result && (
         <p className="status success">
-          Imported: {result.inserted} | Skipped (duplicates): {result.skipped}
+          追加: {result.inserted}件 | スキップ (重複): {result.skipped}件
         </p>
       )}
       {error && <p className="status error">{error}</p>}

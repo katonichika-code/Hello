@@ -17,13 +17,13 @@ export function MonthFilter({ value, onChange }: MonthFilterProps) {
 
   return (
     <div className="month-filter">
-      <label htmlFor="month-select">Month: </label>
+      <label htmlFor="month-select">対象月: </label>
       <select
         id="month-select"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value="">All</option>
+        <option value="">すべて</option>
         {months.map((m) => (
           <option key={m} value={m}>
             {m}

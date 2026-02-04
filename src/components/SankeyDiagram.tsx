@@ -44,7 +44,9 @@ export function SankeyDiagram({ transactions }: SankeyDiagramProps) {
     // Aggregate by account -> category
     const flows = new Map<string, number>();
     expenses.forEach((t) => {
-      const key = `${t.account}|${t.category}`;
+      // Translate account for display
+      const accountLabel = t.account === 'card' ? 'カード' : '現金';
+      const key = `${accountLabel}|${t.category}`;
       flows.set(key, (flows.get(key) || 0) + Math.abs(t.amount));
     });
 
@@ -53,7 +55,8 @@ export function SankeyDiagram({ transactions }: SankeyDiagramProps) {
     const categorySet = new Set<string>();
 
     expenses.forEach((t) => {
-      accountSet.add(t.account);
+      const accountLabel = t.account === 'card' ? 'カード' : '現金';
+      accountSet.add(accountLabel);
       categorySet.add(t.category);
     });
 
@@ -161,15 +164,15 @@ export function SankeyDiagram({ transactions }: SankeyDiagramProps) {
   if (expenses.length === 0) {
     return (
       <div className="sankey-diagram">
-        <h3>Expense Flow</h3>
-        <p className="no-data">No expense data available</p>
+        <h3>支出フロー</h3>
+        <p className="no-data">支出データがありません</p>
       </div>
     );
   }
 
   return (
     <div className="sankey-diagram">
-      <h3>Expense Flow (Account → Category)</h3>
+      <h3>支出フロー (支払元 → カテゴリ)</h3>
       <svg ref={svgRef}></svg>
     </div>
   );
