@@ -12,8 +12,9 @@ import { categorize, CATEGORIES, normalize } from '../api/categorizer.js';
 /**
  * Department stores that should NOT be auto-categorized
  * (purchases are ambiguous - could be food, clothing, cosmetics, etc.)
+ * NOTE: Only Japanese tokens are used to avoid false positives with generic patterns like '0101'
  */
-const AMBIGUOUS_DEPARTMENT_STORES = ['マルイ', 'marui', '0101', '高島屋', 'ルミネ', 'パルコ', 'アトレ'];
+const AMBIGUOUS_DEPARTMENT_STORES = ['マルイ', '高島屋', 'ルミネ', 'パルコ', 'アトレ'];
 
 /**
  * Guardrail: Assert that ambiguous merchants (department stores) are NOT categorized
