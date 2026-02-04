@@ -25,14 +25,19 @@ interface Rule {
 /**
  * Normalize merchant/description text for matching
  * - Trim, collapse spaces, normalize dash variants
+ * - Convert full-width alphanumeric to half-width
  */
 function normalize(text: string): string {
   return text
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ')
-    .replace(/[－ー−‐]/g, '-') // Normalize various dashes
-    .replace(/　/g, ' '); // Full-width space to half-width
+    .replace(/[－ー−‐―]/g, '-') // Normalize various dashes
+    .replace(/　/g, ' ') // Full-width space to half-width
+    // Convert full-width alphanumeric to half-width
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (char) =>
+      String.fromCharCode(char.charCodeAt(0) - 0xFEE0)
+    );
 }
 
 /**
@@ -46,11 +51,13 @@ const RULES: Rule[] = [
       // Convenience stores
       'セブン', 'セブンイレブン', 'ファミリーマート', 'ファミマ', 'ローソン',
       'ミニストップ', 'デイリーヤマザキ', 'newdays', 'ニューデイズ',
+      'フアミリ', // Garbled FamilyMart variant
       // Supermarkets
       'イオン', 'イトーヨーカドー', 'ライフ', 'サミット', 'マルエツ',
       'オーケー', 'ok', 'コープ', '生協', 'まいばすけっと', '西友', 'seiyu',
       'ヨークマート', 'ベルク', 'ヤオコー', 'カスミ', 'いなげや',
       'オオゼキ', 'サンワ', 'ビッグエー', 'アコレ', 'マックスバリュ',
+      '文化堂', // スーパー文化堂
       // Coffee & Cafes
       'スターバックス', 'starbucks', 'タリーズ', 'tullys', 'ドトール',
       'コメダ', 'サンマルク', 'ベローチェ', 'カフェ', 'cafe',
@@ -63,14 +70,23 @@ const RULES: Rule[] = [
       // Restaurants
       '餃子の王将', '日高屋', '幸楽苑', 'リンガーハット', '丸亀製麺',
       'はなまる', 'ゆで太郎', '富士そば', '小諸そば',
+      'すぱじろう', // Spaghetti restaurant chain
+      '銚子丸', // Sushi chain
       // Bakeries & Sweets
       'パン', 'ベーカリー', 'bakery', 'ミスタードーナツ', 'ミスド',
       'クリスピークリーム', 'シャトレーゼ', 'コージーコーナー',
       // Delivery
       'ubereats', 'uber eats', '出前館', 'demaecan',
+      // Food court / restaurants
+      'フードコート', 'フ-ドコ-ト', 'food court',
+      'ビストロ', 'bistro',
+      '食事処', // "Eating place" prefix
+      // Vending machines (drinks/snacks)
+      'ジハンキ', '自販機', 'コカコーラ', 'コカ・コーラ',
       // Generic food keywords
       'レストラン', '食堂', '居酒屋', '弁当', 'ランチ', 'ディナー',
-      '寿司', 'すし', 'ラーメン', 'うどん', 'そば', '焼肉', '焼き肉',
+      '寿司', 'すし', 'ラーメン', 'らーめん', 'うどん', 'そば', '焼肉', '焼き肉',
+      '豚骨', 'とんこつ', // Ramen types
     ],
     patterns: [
       /イオン.*(店|モール)/i,
@@ -111,6 +127,8 @@ const RULES: Rule[] = [
       'hulu', 'disney', 'ディズニー', 'spotify', 'apple music',
       'youtube premium', 'youtube music', 'abema', 'dazn', 'u-next',
       'dアニメ', 'd anime', 'アニメ放題',
+      // Apple billing (iCloud, App Store subscriptions, etc.)
+      'apple com bill', 'ＡＰＰＬＥ', 'apple.com/bill',
       // Software
       'adobe', 'microsoft 365', 'office 365', 'google one', 'icloud',
       'dropbox', 'evernote', '1password', 'notion',
@@ -168,6 +186,8 @@ const RULES: Rule[] = [
       // 100 yen shops
       'ダイソー', 'daiso', 'セリア', 'seria', 'キャンドゥ', 'cando',
       '100円', '100均', '百均',
+      // Department stores (general merchandise)
+      'マルイ', 'marui', '0101',
       // Electronics
       'ヨドバシ', 'yodobashi', 'ビックカメラ', 'bic camera',
       'ヤマダ電機', 'yamada', 'ケーズデンキ', 'エディオン',
