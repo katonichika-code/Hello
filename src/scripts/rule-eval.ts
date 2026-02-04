@@ -10,6 +10,36 @@ import { decodeFileContent, parseCsvText, type ParsedTransaction } from '../api/
 import { categorize, CATEGORIES, normalize } from '../api/categorizer.js';
 
 /**
+ * Department stores that should NOT be auto-categorized
+ * (purchases are ambiguous - could be food, clothing, cosmetics, etc.)
+ */
+const AMBIGUOUS_DEPARTMENT_STORES = ['マルイ', 'marui', '0101', '高島屋', 'ルミネ', 'パルコ', 'アトレ'];
+
+/**
+ * Guardrail: Assert that ambiguous merchants (department stores) are NOT categorized
+ * This prevents regressions where someone accidentally adds them to a category
+ */
+function runDepartmentStoreGuardrail(merchants: Array<{ merchant: string; category: string }>): boolean {
+  let allPassed = true;
+
+  for (const { merchant, category } of merchants) {
+    const normalizedMerchant = normalize(merchant);
+    for (const deptStore of AMBIGUOUS_DEPARTMENT_STORES) {
+      if (normalizedMerchant.includes(normalize(deptStore)) && category !== CATEGORIES.UNCATEGORIZED) {
+        console.error(`✗ GUARDRAIL FAIL: "${merchant}" contains "${deptStore}" but was categorized as "${category}"`);
+        console.error(`  Department stores should remain 未分類 (ambiguous purchases)`);
+        allPassed = false;
+      }
+    }
+  }
+
+  if (allPassed) {
+    console.log('✓ Department store guardrail passed');
+  }
+  return allPassed;
+}
+
+/**
  * Sanity check for normalize() function
  * Ensures full-width to half-width conversion works correctly
  */
@@ -68,7 +98,7 @@ interface MerchantStat {
   category: string;
 }
 
-function runEvaluation(transactions: ParsedTransaction[]): void {
+function runEvaluation(transactions: ParsedTransaction[]): MerchantStat[] {
   console.log('\n=== ルール評価結果 ===\n');
 
   // Basic stats
@@ -148,6 +178,8 @@ function runEvaluation(transactions: ParsedTransaction[]): void {
     console.log(`△ カバレッジ目標未達 (${coveragePercent}% < ${targetCoverage}%)`);
     console.log('  → 上記の未分類加盟店を確認し、必要に応じてルールを追加してください');
   }
+
+  return categorized;
 }
 
 async function main(): Promise<void> {
@@ -196,7 +228,14 @@ async function main(): Promise<void> {
   console.log(`パース成功: ${result.rows.length}件`);
 
   // Run evaluation
-  runEvaluation(result.rows);
+  const categorized = runEvaluation(result.rows);
+
+  // Run guardrail check for department stores
+  console.log('\n--- ガードレールチェック ---');
+  if (!runDepartmentStoreGuardrail(categorized)) {
+    console.error('\n✗ ガードレール違反: 百貨店が誤って分類されています');
+    process.exit(1);
+  }
 }
 
 main().catch(err => {
