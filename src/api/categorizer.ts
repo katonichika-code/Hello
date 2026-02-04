@@ -24,10 +24,14 @@ interface Rule {
 
 /**
  * Normalize merchant/description text for matching
- * - Trim, collapse spaces, normalize dash variants
- * - Convert full-width alphanumeric to half-width
+ * - Trim whitespace
+ * - Convert to lowercase
+ * - Collapse multiple spaces to single space
+ * - Normalize various dash characters (－ー−‐―) to hyphen (-)
+ * - Convert full-width space (　) to half-width space
+ * - Convert full-width alphanumeric (Ａ-Ｚａ-ｚ０-９) to half-width
  */
-function normalize(text: string): string {
+export function normalize(text: string): string {
   return text
     .trim()
     .toLowerCase()
@@ -186,8 +190,8 @@ const RULES: Rule[] = [
       // 100 yen shops
       'ダイソー', 'daiso', 'セリア', 'seria', 'キャンドゥ', 'cando',
       '100円', '100均', '百均',
-      // Department stores (general merchandise)
-      'マルイ', 'marui', '0101',
+      // NOTE: Department stores (マルイ, 高島屋, etc.) are intentionally NOT included
+      // because purchases there are ambiguous (food, clothing, cosmetics, etc.)
       // Electronics
       'ヨドバシ', 'yodobashi', 'ビックカメラ', 'bic camera',
       'ヤマダ電機', 'yamada', 'ケーズデンキ', 'エディオン',

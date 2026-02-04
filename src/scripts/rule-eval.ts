@@ -7,7 +7,34 @@
 import fs from 'fs';
 import path from 'path';
 import { decodeFileContent, parseCsvText, type ParsedTransaction } from '../api/csvParser.js';
-import { categorize, CATEGORIES } from '../api/categorizer.js';
+import { categorize, CATEGORIES, normalize } from '../api/categorizer.js';
+
+/**
+ * Sanity check for normalize() function
+ * Ensures full-width to half-width conversion works correctly
+ */
+function runNormalizeSanityCheck(): boolean {
+  const testCases = [
+    { input: 'ＢＩＳＴＲＯ　ＰＥＴＩＴ', expected: 'bistro petit' },
+    { input: 'セブン－イレブン', expected: 'セブン-イレブン' },
+    { input: '  test  space  ', expected: 'test space' },
+    { input: 'ＡＰＰＬＥ　ＣＯＭ　ＢＩＬＬ', expected: 'apple com bill' },
+  ];
+
+  let allPassed = true;
+  for (const { input, expected } of testCases) {
+    const result = normalize(input);
+    if (result !== expected) {
+      console.error(`✗ normalize("${input}") = "${result}", expected "${expected}"`);
+      allPassed = false;
+    }
+  }
+
+  if (allPassed) {
+    console.log('✓ normalize() sanity check passed');
+  }
+  return allPassed;
+}
 
 function parseArgs(): { filePath: string | null } {
   const args = process.argv.slice(2);
@@ -124,6 +151,12 @@ function runEvaluation(transactions: ParsedTransaction[]): void {
 }
 
 async function main(): Promise<void> {
+  // Always run sanity check first
+  if (!runNormalizeSanityCheck()) {
+    console.error('normalize() sanity check failed!');
+    process.exit(1);
+  }
+
   const { filePath } = parseArgs();
 
   if (!filePath) {
