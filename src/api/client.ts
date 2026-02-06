@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8787';
+const API_BASE = '/api';
 
 export interface Transaction {
   id: string;
