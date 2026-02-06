@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:lan": "concurrently \"vite --host 0.0.0.0\" \"npm run dev:api\"",
     "dev:web": "vite",
     "dev:api": "tsx watch server/src/index.ts",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "smoke": "tsx server/scripts/smoke-test.ts",
+    "smoke:proxy": "tsx src/scripts/smoke-proxy.ts",
     "csvcheck": "tsx src/scripts/csv-check.ts",
     "ruleeval": "tsx src/scripts/rule-eval.ts"
   },

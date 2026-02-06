@@ -28,7 +28,7 @@ interface Rule {
  * - Convert to lowercase
  * - Collapse multiple spaces to single space
  * - Normalize various dash characters (－ー−‐―) to hyphen (-)
- * - Convert full-width space (　) to half-width space
+ * - Convert full-width space (U+3000) to half-width space
  * - Convert full-width alphanumeric (Ａ-Ｚａ-ｚ０-９) to half-width
  */
 export function normalize(text: string): string {
@@ -37,7 +37,7 @@ export function normalize(text: string): string {
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .replace(/[－ー−‐―]/g, '-') // Normalize various dashes
-    .replace(/　/g, ' ') // Full-width space to half-width
+    .replace(/\u3000/g, ' ') // Full-width space to half-width
     // Convert full-width alphanumeric to half-width
     .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (char) =>
       String.fromCharCode(char.charCodeAt(0) - 0xFEE0)
