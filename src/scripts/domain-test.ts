@@ -214,6 +214,77 @@ test('currentMonth: formats correctly', () => {
   assertEq(m2, '2025-12', 'december');
 });
 
+// --- Merchant Key Tests ---
+import { deriveMerchantKey } from '../api/merchantKey';
+
+console.log('\n=== Merchant Key Tests ===\n');
+
+test('deriveMerchantKey: normalizes full-width and strips digits', () => {
+  const key = deriveMerchantKey('セブン－イレブン 新宿3号店');
+  // Full-width dash → half-width, digits removed, space collapsed
+  assertEq(key, 'セブンイレブン 新宿号店', 'merchant_key');
+});
+
+test('deriveMerchantKey: same merchant, different branch → same key', () => {
+  const key1 = deriveMerchantKey('セブン－イレブン 新宿3号店');
+  const key2 = deriveMerchantKey('セブン－イレブン 渋谷1号店');
+  assertEq(key1 === key2, false, 'different branches still differ in non-digit chars');
+  // But digits are stripped, so branch numbers don't affect:
+  const key3 = deriveMerchantKey('ローソン 001');
+  const key4 = deriveMerchantKey('ローソン 002');
+  assertEq(key3, key4, 'same merchant, different number');
+});
+
+test('deriveMerchantKey: returns null for digit-only descriptions', () => {
+  const key = deriveMerchantKey('12345');
+  assertEq(key, null, 'digit-only');
+});
+
+test('deriveMerchantKey: handles empty string', () => {
+  const key = deriveMerchantKey('');
+  assertEq(key, null, 'empty');
+});
+
+// --- Categorization Adapter Tests ---
+import { categorizeWithLearning, buildMerchantMap } from '../api/categorizationAdapter';
+
+console.log('\n=== Categorization Adapter Tests ===\n');
+
+test('categorizeWithLearning: learned mapping takes priority', () => {
+  const merchantMap = new Map([['セブンイレブン', '食費']]);
+  // Description that would produce merchant_key matching the map
+  const result = categorizeWithLearning('セブンイレブン', merchantMap);
+  assertEq(result.category, '食費', 'category');
+  assertEq(result.categorySource, 'learned', 'source');
+  assertEq(result.confidence, 1.0, 'confidence');
+});
+
+test('categorizeWithLearning: falls back to rule-based', () => {
+  const merchantMap = new Map<string, string>();
+  // "スターバックス" should match food rules in categorizer
+  const result = categorizeWithLearning('スターバックス', merchantMap);
+  assertEq(result.categorySource, 'rule', 'source');
+  assertEq(result.confidence, 0.8, 'confidence');
+});
+
+test('categorizeWithLearning: unknown if no match', () => {
+  const merchantMap = new Map<string, string>();
+  const result = categorizeWithLearning('XYZABC何かの店', merchantMap);
+  assertEq(result.category, 'Uncategorized', 'category');
+  assertEq(result.categorySource, 'unknown', 'source');
+  assertEq(result.confidence, 0, 'confidence');
+});
+
+test('buildMerchantMap: builds lookup from API response', () => {
+  const map = buildMerchantMap([
+    { merchant_key: 'a', category: '食費', updated_at: '', hits: 1 },
+    { merchant_key: 'b', category: '交通費', updated_at: '', hits: 5 },
+  ]);
+  assertEq(map.get('a'), '食費', 'mapping a');
+  assertEq(map.get('b'), '交通費', 'mapping b');
+  assertEq(map.size, 2, 'size');
+});
+
 // --- Summary ---
 console.log('\n=== Summary ===');
 const passed = results.filter((r) => r.passed).length;
