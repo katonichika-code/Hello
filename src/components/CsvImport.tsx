@@ -1,12 +1,12 @@
 import { useState, useRef } from 'react';
-import { bulkCreateTransactions, generateHash } from '../api/client';
+import { bulkCreateTransactions, generateHash, getMerchantMap } from '../api/client';
 import {
   decodeFileContent,
   parseCsvText,
   type CsvFormat,
   type ParsedTransaction,
 } from '../api/csvParser';
-import { categorize } from '../api/categorizer';
+import { categorizeWithLearning, buildMerchantMap } from '../api/categorizationAdapter';
 
 interface ImportResult {
   inserted: number;
@@ -15,6 +15,9 @@ interface ImportResult {
 
 interface PreflightRow extends ParsedTransaction {
   predictedCategory: string;
+  categorySource: string;
+  confidence: number;
+  merchantKey: string | null;
 }
 
 interface PreflightData {
@@ -22,6 +25,9 @@ interface PreflightData {
   totalRows: number;
   preview: PreflightRow[];
   allRows: PreflightRow[];
+  learnedCount: number;
+  ruleCount: number;
+  unknownCount: number;
 }
 
 interface CsvImportProps {
@@ -51,6 +57,15 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
     resetState();
 
     try {
+      // Load merchant map for learned categorization
+      let merchantMap = new Map<string, string>();
+      try {
+        const mappings = await getMerchantMap();
+        merchantMap = buildMerchantMap(mappings);
+      } catch {
+        // No merchant map yet — continue with rule-only
+      }
+
       // Read file as ArrayBuffer for encoding detection
       const buffer = await file.arrayBuffer();
       const text = decodeFileContent(buffer);
@@ -63,11 +78,25 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
         return;
       }
 
-      // Add predicted categories to all rows
-      const rowsWithCategories: PreflightRow[] = parseResult.rows.map((row) => ({
-        ...row,
-        predictedCategory: categorize(row.description),
-      }));
+      // Categorize with 3-layer system
+      let learnedCount = 0;
+      let ruleCount = 0;
+      let unknownCount = 0;
+
+      const rowsWithCategories: PreflightRow[] = parseResult.rows.map((row) => {
+        const result = categorizeWithLearning(row.description, merchantMap);
+        if (result.categorySource === 'learned') learnedCount++;
+        else if (result.categorySource === 'rule') ruleCount++;
+        else unknownCount++;
+
+        return {
+          ...row,
+          predictedCategory: result.category,
+          categorySource: result.categorySource,
+          confidence: result.confidence,
+          merchantKey: result.merchantKey,
+        };
+      });
 
       // Show preflight preview
       setPreflight({
@@ -75,6 +104,9 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
         totalRows: rowsWithCategories.length,
         preview: rowsWithCategories.slice(0, 5),
         allRows: rowsWithCategories,
+        learnedCount,
+        ruleCount,
+        unknownCount,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'CSVファイルの読み込みに失敗しました');
@@ -88,7 +120,7 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
     setError(null);
 
     try {
-      // Convert to API format with hashes and predicted categories
+      // Convert to API format with hashes and categorization metadata
       const transactions = await Promise.all(
         preflight.allRows.map(async (row) => {
           const positiveAmount = Math.abs(row.amount);
@@ -102,6 +134,9 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
             source: 'csv' as const,
             description: row.description,
             hash,
+            merchant_key: row.merchantKey,
+            category_source: row.categorySource,
+            confidence: row.confidence,
           };
         })
       );
@@ -132,6 +167,12 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
     }).format(-amount); // Show as negative (expense)
   };
 
+  const sourceLabel = (src: string) => {
+    if (src === 'learned') return '学習済';
+    if (src === 'rule') return 'ルール';
+    return '未分類';
+  };
+
   return (
     <div className="csv-import">
       <h3>CSV取り込み</h3>
@@ -157,6 +198,9 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
           <div className="preflight-count">
             <strong>取り込み件数:</strong> {preflight.totalRows}件
           </div>
+          <div className="preflight-stats">
+            学習済: {preflight.learnedCount}件 | ルール: {preflight.ruleCount}件 | 未分類: {preflight.unknownCount}件
+          </div>
 
           {preflight.preview.length > 0 && (
             <div className="preflight-preview">
@@ -168,6 +212,7 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
                     <th>金額</th>
                     <th>内容</th>
                     <th>推定カテゴリ</th>
+                    <th>判定</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -176,8 +221,11 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
                       <td>{row.date}</td>
                       <td className="expense">{formatAmount(row.amount)}</td>
                       <td>{row.description}</td>
-                      <td className={row.predictedCategory === '未分類' ? 'uncategorized' : ''}>
-                        {row.predictedCategory}
+                      <td className={row.predictedCategory === 'Uncategorized' || row.predictedCategory === '未分類' ? 'uncategorized' : ''}>
+                        {row.predictedCategory === 'Uncategorized' ? '未分類' : row.predictedCategory}
+                      </td>
+                      <td className={`source-${row.categorySource}`}>
+                        {sourceLabel(row.categorySource)}
                       </td>
                     </tr>
                   ))}

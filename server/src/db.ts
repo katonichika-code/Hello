@@ -83,6 +83,30 @@ if (budgetColNames.has('amount') && !budgetColNames.has('limit_amount')) {
   db.exec(`ALTER TABLE budgets RENAME COLUMN amount TO limit_amount`);
 }
 
+// Add merchant categorization columns to transactions (safe for existing DBs)
+const txnCols2 = db.pragma('table_info(transactions)') as { name: string }[];
+const txnColNames2 = new Set(txnCols2.map((c) => c.name));
+
+if (!txnColNames2.has('merchant_key')) {
+  db.exec(`ALTER TABLE transactions ADD COLUMN merchant_key TEXT DEFAULT NULL`);
+}
+if (!txnColNames2.has('category_source')) {
+  db.exec(`ALTER TABLE transactions ADD COLUMN category_source TEXT NOT NULL DEFAULT 'unknown'`);
+}
+if (!txnColNames2.has('confidence')) {
+  db.exec(`ALTER TABLE transactions ADD COLUMN confidence REAL NOT NULL DEFAULT 0`);
+}
+
+// Merchant mapping table (learned categorization)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS merchant_map (
+    merchant_key TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    updated_at TEXT DEFAULT (datetime('now')),
+    hits INTEGER NOT NULL DEFAULT 0
+  )
+`);
+
 export default db;
 
 // Helper function to generate cuid-like IDs
@@ -104,6 +128,9 @@ export interface Transaction {
   description: string;
   hash: string;
   createdAt: string;
+  merchant_key: string | null;
+  category_source: string;
+  confidence: number;
 }
 
 export interface TransactionInput {
@@ -115,6 +142,16 @@ export interface TransactionInput {
   source?: string;
   description: string;
   hash: string;
+  merchant_key?: string | null;
+  category_source?: string;
+  confidence?: number;
+}
+
+export interface MerchantMapping {
+  merchant_key: string;
+  category: string;
+  updated_at: string;
+  hits: number;
 }
 
 export interface Settings {

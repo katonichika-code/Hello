@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import db, { generateId, type Transaction, type TransactionInput, type Settings, type Budget } from './db.js';
+import db, { generateId, type Transaction, type TransactionInput, type Settings, type Budget, type MerchantMapping } from './db.js';
 
 const app = express();
 const PORT = 8787;
@@ -48,7 +48,8 @@ app.get('/transactions', (req, res) => {
 app.post('/transactions', (req, res) => {
   try {
     const { date, amount, category, account, description, hash,
-            wallet = 'personal', source = 'manual' } = req.body as TransactionInput;
+            wallet = 'personal', source = 'manual',
+            merchant_key = null, category_source = 'unknown', confidence = 0 } = req.body as TransactionInput;
 
     // Check if hash already exists
     const existing = db.prepare('SELECT id FROM transactions WHERE hash = ?').get(hash);
@@ -59,11 +60,11 @@ app.post('/transactions', (req, res) => {
 
     const id = generateId();
     const stmt = db.prepare(`
-      INSERT INTO transactions (id, date, amount, category, account, wallet, source, description, hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (id, date, amount, category, account, wallet, source, description, hash, merchant_key, category_source, confidence)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(id, date, amount, category, account, wallet, source, description, hash);
+    stmt.run(id, date, amount, category, account, wallet, source, description, hash, merchant_key, category_source, confidence);
 
     const transaction = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as Transaction;
     res.status(201).json(transaction);
@@ -82,8 +83,8 @@ app.post('/transactions/bulk', (req, res) => {
     let skipped = 0;
 
     const insertStmt = db.prepare(`
-      INSERT INTO transactions (id, date, amount, category, account, wallet, source, description, hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (id, date, amount, category, account, wallet, source, description, hash, merchant_key, category_source, confidence)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const checkStmt = db.prepare('SELECT id FROM transactions WHERE hash = ?');
@@ -99,7 +100,10 @@ app.post('/transactions/bulk', (req, res) => {
         const id = generateId();
         const wallet = item.wallet || 'personal';
         const source = item.source || 'csv';
-        insertStmt.run(id, item.date, item.amount, item.category, item.account, wallet, source, item.description, item.hash);
+        const merchantKey = item.merchant_key ?? null;
+        const categorySource = item.category_source || 'unknown';
+        const confidence = item.confidence ?? 0;
+        insertStmt.run(id, item.date, item.amount, item.category, item.account, wallet, source, item.description, item.hash, merchantKey, categorySource, confidence);
         inserted++;
       }
     });
@@ -113,19 +117,36 @@ app.post('/transactions/bulk', (req, res) => {
   }
 });
 
-// PATCH /transactions/:id - Update category only
+// PATCH /transactions/:id - Update category (+ optional merchant learning)
 app.patch('/transactions/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { category } = req.body as { category: string };
+    const { category, learn_merchant } = req.body as {
+      category: string;
+      learn_merchant?: boolean;
+    };
 
-    const existing = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
+    const existing = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as Transaction | undefined;
     if (!existing) {
       res.status(404).json({ error: 'Transaction not found' });
       return;
     }
 
-    db.prepare('UPDATE transactions SET category = ? WHERE id = ?').run(category, id);
+    db.prepare(
+      'UPDATE transactions SET category = ?, category_source = ? WHERE id = ?'
+    ).run(category, 'manual', id);
+
+    // If learn_merchant is true and merchant_key exists, upsert merchant_map
+    if (learn_merchant && existing.merchant_key) {
+      db.prepare(`
+        INSERT INTO merchant_map (merchant_key, category, hits)
+        VALUES (?, ?, 1)
+        ON CONFLICT(merchant_key) DO UPDATE SET
+          category = excluded.category,
+          updated_at = datetime('now'),
+          hits = merchant_map.hits + 1
+      `).run(existing.merchant_key, category);
+    }
 
     const updated = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as Transaction;
     res.json(updated);
@@ -231,6 +252,70 @@ app.delete('/budgets/:id', (req, res) => {
   } catch (error) {
     console.error('Error deleting budget:', error);
     res.status(500).json({ error: 'Failed to delete budget' });
+  }
+});
+
+// --- Merchant Map ---
+
+// GET /merchant-map - Get all learned mappings
+app.get('/merchant-map', (_req, res) => {
+  try {
+    const mappings = db.prepare(
+      'SELECT * FROM merchant_map ORDER BY hits DESC'
+    ).all() as MerchantMapping[];
+    res.json(mappings);
+  } catch (error) {
+    console.error('Error fetching merchant map:', error);
+    res.status(500).json({ error: 'Failed to fetch merchant map' });
+  }
+});
+
+// POST /merchant-map - Upsert a merchant mapping
+app.post('/merchant-map', (req, res) => {
+  try {
+    const { merchant_key, category } = req.body as { merchant_key: string; category: string };
+    db.prepare(`
+      INSERT INTO merchant_map (merchant_key, category, hits)
+      VALUES (?, ?, 1)
+      ON CONFLICT(merchant_key) DO UPDATE SET
+        category = excluded.category,
+        updated_at = datetime('now'),
+        hits = merchant_map.hits + 1
+    `).run(merchant_key, category);
+
+    const mapping = db.prepare('SELECT * FROM merchant_map WHERE merchant_key = ?')
+      .get(merchant_key) as MerchantMapping;
+    res.json(mapping);
+  } catch (error) {
+    console.error('Error upserting merchant map:', error);
+    res.status(500).json({ error: 'Failed to upsert merchant map' });
+  }
+});
+
+// POST /merchant-map/bulk-apply - Apply a category to all transactions with a given merchant_key
+app.post('/merchant-map/bulk-apply', (req, res) => {
+  try {
+    const { merchant_key, category } = req.body as { merchant_key: string; category: string };
+
+    // Upsert merchant_map
+    db.prepare(`
+      INSERT INTO merchant_map (merchant_key, category, hits)
+      VALUES (?, ?, 0)
+      ON CONFLICT(merchant_key) DO UPDATE SET
+        category = excluded.category,
+        updated_at = datetime('now')
+    `).run(merchant_key, category);
+
+    // Update all matching uncategorized transactions
+    const result = db.prepare(`
+      UPDATE transactions SET category = ?, category_source = 'learned'
+      WHERE merchant_key = ? AND category = 'Uncategorized'
+    `).run(category, merchant_key);
+
+    res.json({ updated: result.changes });
+  } catch (error) {
+    console.error('Error in bulk-apply:', error);
+    res.status(500).json({ error: 'Failed to bulk-apply category' });
   }
 });
 

@@ -152,7 +152,12 @@
 
 .preflight-header,
 .preflight-count { font-size: 0.875rem; margin-bottom: 0.5rem; }
+.preflight-stats { font-size: 0.8rem; color: #6b7280; margin-bottom: 0.5rem; }
 .preflight-preview { margin-top: 0.75rem; font-size: 0.875rem; }
+
+.source-learned { color: #059669; font-weight: 500; font-size: 0.75rem; }
+.source-rule { color: #3b82f6; font-size: 0.75rem; }
+.source-unknown { color: #9ca3af; font-size: 0.75rem; }
 
 .preview-table {
   width: 100%;

@@ -11,6 +11,9 @@ export interface Transaction {
   description: string;
   hash: string;
   createdAt: string;
+  merchant_key: string | null;
+  category_source: string;
+  confidence: number;
 }
 
 export interface TransactionInput {
@@ -22,6 +25,16 @@ export interface TransactionInput {
   source?: string;
   description: string;
   hash: string;
+  merchant_key?: string | null;
+  category_source?: string;
+  confidence?: number;
+}
+
+export interface ApiMerchantMapping {
+  merchant_key: string;
+  category: string;
+  updated_at: string;
+  hits: number;
 }
 
 export interface BulkResult {
@@ -83,11 +96,15 @@ export async function bulkCreateTransactions(data: TransactionInput[]): Promise<
   return response.json();
 }
 
-export async function updateTransactionCategory(id: string, category: string): Promise<Transaction> {
+export async function updateTransactionCategory(
+  id: string,
+  category: string,
+  learnMerchant = false,
+): Promise<Transaction> {
   const response = await fetch(`${API_BASE}/transactions/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ category }),
+    body: JSON.stringify({ category, learn_merchant: learnMerchant }),
   });
   if (!response.ok) throw new Error('Failed to update transaction');
   return response.json();
@@ -154,5 +171,39 @@ export async function deleteBudget(id: string): Promise<void> {
 export async function getSummary(month: string): Promise<ApiSummary> {
   const response = await fetch(`${API_BASE}/summary?month=${month}`);
   if (!response.ok) throw new Error('Failed to fetch summary');
+  return response.json();
+}
+
+// --- Merchant Map ---
+
+export async function getMerchantMap(): Promise<ApiMerchantMapping[]> {
+  const response = await fetch(`${API_BASE}/merchant-map`);
+  if (!response.ok) throw new Error('Failed to fetch merchant map');
+  return response.json();
+}
+
+export async function upsertMerchantMapping(
+  merchantKey: string,
+  category: string,
+): Promise<ApiMerchantMapping> {
+  const response = await fetch(`${API_BASE}/merchant-map`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ merchant_key: merchantKey, category }),
+  });
+  if (!response.ok) throw new Error('Failed to upsert merchant mapping');
+  return response.json();
+}
+
+export async function bulkApplyMerchantCategory(
+  merchantKey: string,
+  category: string,
+): Promise<{ updated: number }> {
+  const response = await fetch(`${API_BASE}/merchant-map/bulk-apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ merchant_key: merchantKey, category }),
+  });
+  if (!response.ok) throw new Error('Failed to bulk-apply category');
   return response.json();
 }
