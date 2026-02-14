@@ -1,17 +1,27 @@
 import type { Transaction } from '../../api/client';
+import { SankeyDiagram } from '../../components/SankeyDiagram';
+import { TransactionList } from '../../components/TransactionList';
+import { CsvImport } from '../../components/CsvImport';
 
 export interface AnalyticsScreenProps {
   transactions: Transaction[];
   onRefresh: () => void;
 }
 
-/** Analytics screen placeholder — Sankey + list will be reattached in Slice 6 */
-export function AnalyticsScreen({ transactions }: AnalyticsScreenProps) {
+export function AnalyticsScreen({ transactions, onRefresh }: AnalyticsScreenProps) {
   return (
-    <div className="screen-content">
-      <p className="no-data">
-        分析画面を準備中... ({transactions.length}件の取引)
-      </p>
+    <div className="screen-content analytics-screen">
+      {/* Sankey flow diagram */}
+      <SankeyDiagram transactions={transactions} />
+
+      {/* CSV Import */}
+      <CsvImport onImportComplete={onRefresh} />
+
+      {/* Full transaction list with inline editing */}
+      <div className="transactions-section">
+        <h3>取引一覧</h3>
+        <TransactionList transactions={transactions} onUpdate={onRefresh} />
+      </div>
     </div>
   );
 }
