@@ -6,6 +6,8 @@ export interface Transaction {
   amount: number;
   category: string;
   account: string;
+  wallet: string;
+  source: string;
   description: string;
   hash: string;
   createdAt: string;
@@ -16,6 +18,8 @@ export interface TransactionInput {
   amount: number;
   category: string;
   account: string;
+  wallet?: string;
+  source?: string;
   description: string;
   hash: string;
 }
@@ -23,6 +27,21 @@ export interface TransactionInput {
 export interface BulkResult {
   inserted: number;
   skipped: number;
+}
+
+export interface ApiSettings {
+  monthly_income: number;
+  fixed_cost_total: number;
+  savings_target: number;
+}
+
+export interface ApiBudget {
+  id: string;
+  month: string;
+  category: string;
+  amount: number;
+  pinned: number;
+  display_order: number;
 }
 
 export async function getTransactions(month?: string): Promise<Transaction[]> {
@@ -74,4 +93,50 @@ export async function generateHash(date: string, amount: number, description: st
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// --- Settings ---
+
+export async function getSettings(): Promise<ApiSettings> {
+  const response = await fetch(`${API_BASE}/settings`);
+  if (!response.ok) throw new Error('Failed to fetch settings');
+  return response.json();
+}
+
+export async function updateSettings(data: ApiSettings): Promise<ApiSettings> {
+  const response = await fetch(`${API_BASE}/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to update settings');
+  return response.json();
+}
+
+// --- Budgets ---
+
+export async function getBudgets(month?: string): Promise<ApiBudget[]> {
+  const url = month
+    ? `${API_BASE}/budgets?month=${month}`
+    : `${API_BASE}/budgets`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Failed to fetch budgets');
+  return response.json();
+}
+
+export async function createBudget(data: Omit<ApiBudget, 'id'>): Promise<ApiBudget> {
+  const response = await fetch(`${API_BASE}/budgets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to create budget');
+  return response.json();
+}
+
+export async function deleteBudget(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/budgets/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error('Failed to delete budget');
 }

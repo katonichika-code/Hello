@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import db, { generateId, type Transaction, type TransactionInput } from './db.js';
+import db, { generateId, type Transaction, type TransactionInput, type Settings, type Budget } from './db.js';
 
 const app = express();
 const PORT = 8787;
@@ -47,7 +47,8 @@ app.get('/transactions', (req, res) => {
 // POST /transactions - Create a single transaction
 app.post('/transactions', (req, res) => {
   try {
-    const { date, amount, category, account, description, hash } = req.body as TransactionInput;
+    const { date, amount, category, account, description, hash,
+            wallet = 'personal', source = 'manual' } = req.body as TransactionInput;
 
     // Check if hash already exists
     const existing = db.prepare('SELECT id FROM transactions WHERE hash = ?').get(hash);
@@ -58,11 +59,11 @@ app.post('/transactions', (req, res) => {
 
     const id = generateId();
     const stmt = db.prepare(`
-      INSERT INTO transactions (id, date, amount, category, account, description, hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (id, date, amount, category, account, wallet, source, description, hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(id, date, amount, category, account, description, hash);
+    stmt.run(id, date, amount, category, account, wallet, source, description, hash);
 
     const transaction = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as Transaction;
     res.status(201).json(transaction);
@@ -81,8 +82,8 @@ app.post('/transactions/bulk', (req, res) => {
     let skipped = 0;
 
     const insertStmt = db.prepare(`
-      INSERT INTO transactions (id, date, amount, category, account, description, hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (id, date, amount, category, account, wallet, source, description, hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const checkStmt = db.prepare('SELECT id FROM transactions WHERE hash = ?');
@@ -96,7 +97,9 @@ app.post('/transactions/bulk', (req, res) => {
         }
 
         const id = generateId();
-        insertStmt.run(id, item.date, item.amount, item.category, item.account, item.description, item.hash);
+        const wallet = item.wallet || 'personal';
+        const source = item.source || 'csv';
+        insertStmt.run(id, item.date, item.amount, item.category, item.account, wallet, source, item.description, item.hash);
         inserted++;
       }
     });
@@ -129,6 +132,105 @@ app.patch('/transactions/:id', (req, res) => {
   } catch (error) {
     console.error('Error updating transaction:', error);
     res.status(500).json({ error: 'Failed to update transaction' });
+  }
+});
+
+// --- Settings ---
+
+// GET /settings
+app.get('/settings', (_req, res) => {
+  try {
+    const row = db.prepare('SELECT * FROM settings WHERE id = 1').get() as Settings & { id: number };
+    res.json({
+      monthly_income: row.monthly_income,
+      fixed_cost_total: row.fixed_cost_total,
+      savings_target: row.savings_target,
+    });
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+// PUT /settings
+app.put('/settings', (req, res) => {
+  try {
+    const { monthly_income, fixed_cost_total, savings_target } = req.body as Settings;
+    db.prepare(`
+      UPDATE settings SET monthly_income = ?, fixed_cost_total = ?, savings_target = ?
+      WHERE id = 1
+    `).run(monthly_income, fixed_cost_total, savings_target);
+
+    const row = db.prepare('SELECT * FROM settings WHERE id = 1').get() as Settings & { id: number };
+    res.json({
+      monthly_income: row.monthly_income,
+      fixed_cost_total: row.fixed_cost_total,
+      savings_target: row.savings_target,
+    });
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// --- Budgets ---
+
+// GET /budgets?month=YYYY-MM
+app.get('/budgets', (req, res) => {
+  try {
+    const month = req.query.month as string | undefined;
+    let budgets: Budget[];
+    if (month) {
+      budgets = db.prepare(
+        'SELECT * FROM budgets WHERE month = ? ORDER BY display_order ASC'
+      ).all(month) as Budget[];
+    } else {
+      budgets = db.prepare(
+        'SELECT * FROM budgets ORDER BY month DESC, display_order ASC'
+      ).all() as Budget[];
+    }
+    res.json(budgets);
+  } catch (error) {
+    console.error('Error fetching budgets:', error);
+    res.status(500).json({ error: 'Failed to fetch budgets' });
+  }
+});
+
+// POST /budgets
+app.post('/budgets', (req, res) => {
+  try {
+    const { month, category, amount, pinned = 0, display_order = 0 } = req.body as Budget;
+    const id = generateId();
+    db.prepare(`
+      INSERT INTO budgets (id, month, category, amount, pinned, display_order)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(month, category) DO UPDATE SET
+        amount = excluded.amount, pinned = excluded.pinned, display_order = excluded.display_order
+    `).run(id, month, category, amount, pinned, display_order);
+
+    const created = db.prepare('SELECT * FROM budgets WHERE month = ? AND category = ?')
+      .get(month, category) as Budget;
+    res.status(201).json(created);
+  } catch (error) {
+    console.error('Error creating budget:', error);
+    res.status(500).json({ error: 'Failed to create budget' });
+  }
+});
+
+// DELETE /budgets/:id
+app.delete('/budgets/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM budgets WHERE id = ?').get(id);
+    if (!existing) {
+      res.status(404).json({ error: 'Budget not found' });
+      return;
+    }
+    db.prepare('DELETE FROM budgets WHERE id = ?').run(id);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error deleting budget:', error);
+    res.status(500).json({ error: 'Failed to delete budget' });
   }
 });
 
