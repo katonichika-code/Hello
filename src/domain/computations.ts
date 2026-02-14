@@ -36,7 +36,7 @@ export function totalExpenses(txns: Transaction[]): number {
  * Definition A — the single source of truth number.
  *
  * Remaining Free-to-Spend =
- *   monthly_income − fixed_cost_total − savings_target − SUM(all month expenses)
+ *   monthly_income − fixed_cost_total − monthly_savings_target − SUM(all month expenses)
  *
  * All inputs are positive JPY. Expenses in txns are negative (convention).
  */
@@ -45,7 +45,7 @@ export function remainingFreeToSpend(
   monthTxns: Transaction[],
 ): number {
   const spent = totalExpenses(monthTxns);
-  return settings.monthlyIncome - settings.fixedCostTotal - settings.savingsTarget - spent;
+  return settings.monthlyIncome - settings.fixedCostTotal - settings.monthlySavingsTarget - spent;
 }
 
 /**
@@ -62,9 +62,9 @@ export function categoryRemaining(
 
   return {
     category: budget.category,
-    budgeted: budget.amount,
+    budgeted: budget.limitAmount,
     spent,
-    remaining: budget.amount - spent,
+    remaining: budget.limitAmount - spent,
   };
 }
 
@@ -113,7 +113,7 @@ export function projectedMonthEnd(
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   const dailyRate = spent / dayOfMonth;
   const projectedTotal = dailyRate * daysInMonth;
-  const disposable = settings.monthlyIncome - settings.fixedCostTotal - settings.savingsTarget;
+  const disposable = settings.monthlyIncome - settings.fixedCostTotal - settings.monthlySavingsTarget;
 
   return disposable - projectedTotal;
 }

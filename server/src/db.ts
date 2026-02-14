@@ -50,9 +50,16 @@ db.exec(`
     id INTEGER PRIMARY KEY CHECK (id = 1),
     monthly_income INTEGER NOT NULL DEFAULT 0,
     fixed_cost_total INTEGER NOT NULL DEFAULT 0,
-    savings_target INTEGER NOT NULL DEFAULT 0
+    monthly_savings_target INTEGER NOT NULL DEFAULT 0
   )
 `);
+// Migrate: rename savings_target → monthly_savings_target (safe for existing DBs)
+const settingsCols = db.pragma('table_info(settings)') as { name: string }[];
+const settingsColNames = new Set(settingsCols.map((c) => c.name));
+if (settingsColNames.has('savings_target') && !settingsColNames.has('monthly_savings_target')) {
+  db.exec(`ALTER TABLE settings RENAME COLUMN savings_target TO monthly_savings_target`);
+}
+
 // Ensure the single row exists
 db.exec(`INSERT OR IGNORE INTO settings (id) VALUES (1)`);
 
@@ -62,12 +69,19 @@ db.exec(`
     id TEXT PRIMARY KEY,
     month TEXT NOT NULL,
     category TEXT NOT NULL,
-    amount INTEGER NOT NULL DEFAULT 0,
+    limit_amount INTEGER NOT NULL DEFAULT 0,
     pinned INTEGER NOT NULL DEFAULT 0,
     display_order INTEGER NOT NULL DEFAULT 0,
     UNIQUE(month, category)
   )
 `);
+
+// Migrate: rename budgets.amount → limit_amount (safe for existing DBs)
+const budgetCols = db.pragma('table_info(budgets)') as { name: string }[];
+const budgetColNames = new Set(budgetCols.map((c) => c.name));
+if (budgetColNames.has('amount') && !budgetColNames.has('limit_amount')) {
+  db.exec(`ALTER TABLE budgets RENAME COLUMN amount TO limit_amount`);
+}
 
 export default db;
 
@@ -106,14 +120,14 @@ export interface TransactionInput {
 export interface Settings {
   monthly_income: number;
   fixed_cost_total: number;
-  savings_target: number;
+  monthly_savings_target: number;
 }
 
 export interface Budget {
   id: string;
   month: string;
   category: string;
-  amount: number;
+  limit_amount: number;
   pinned: number;
   display_order: number;
 }

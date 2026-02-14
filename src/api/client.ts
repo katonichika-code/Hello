@@ -32,16 +32,24 @@ export interface BulkResult {
 export interface ApiSettings {
   monthly_income: number;
   fixed_cost_total: number;
-  savings_target: number;
+  monthly_savings_target: number;
 }
 
 export interface ApiBudget {
   id: string;
   month: string;
   category: string;
-  amount: number;
+  limit_amount: number;
   pinned: number;
   display_order: number;
+}
+
+export interface ApiSummary {
+  month: string;
+  remaining_free_to_spend: number;
+  total_expenses: number;
+  disposable: number;
+  category_totals: { category: string; spent: number }[];
 }
 
 export async function getTransactions(month?: string): Promise<Transaction[]> {
@@ -139,4 +147,12 @@ export async function deleteBudget(id: string): Promise<void> {
     method: 'DELETE',
   });
   if (!response.ok) throw new Error('Failed to delete budget');
+}
+
+// --- Summary ---
+
+export async function getSummary(month: string): Promise<ApiSummary> {
+  const response = await fetch(`${API_BASE}/summary?month=${month}`);
+  if (!response.ok) throw new Error('Failed to fetch summary');
+  return response.json();
 }

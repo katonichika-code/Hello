@@ -5,9 +5,9 @@
 
 /** User-configurable monthly parameters */
 export interface Settings {
-  monthlyIncome: number;       // JPY
-  fixedCostTotal: number;      // JPY (rent, utilities, loans — total)
-  savingsTarget: number;       // JPY monthly savings goal
+  monthlyIncome: number;          // JPY
+  fixedCostTotal: number;         // JPY (rent, utilities, loans — total)
+  monthlySavingsTarget: number;   // JPY monthly savings goal
 }
 
 /** Per-category budget for a specific month */
@@ -15,7 +15,7 @@ export interface Budget {
   id: string;
   month: string;               // YYYY-MM
   category: string;
-  amount: number;              // JPY budget limit
+  limitAmount: number;         // JPY budget limit
   pinned: boolean;             // shown on Home
   displayOrder: number;        // sort order on Home
 }
@@ -61,5 +61,5 @@ export interface BudgetStatus {
 export const DEFAULT_SETTINGS: Settings = {
   monthlyIncome: 0,
   fixedCostTotal: 0,
-  savingsTarget: 0,
+  monthlySavingsTarget: 0,
 };

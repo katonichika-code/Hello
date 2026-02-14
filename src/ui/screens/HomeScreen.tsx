@@ -22,7 +22,7 @@ function toDomainSettings(api: ApiSettings): Settings {
   return {
     monthlyIncome: api.monthly_income,
     fixedCostTotal: api.fixed_cost_total,
-    savingsTarget: api.savings_target,
+    monthlySavingsTarget: api.monthly_savings_target,
   };
 }
 
@@ -32,7 +32,7 @@ function toDomainBudget(api: ApiBudget): Budget {
     id: api.id,
     month: api.month,
     category: api.category,
-    amount: api.amount,
+    limitAmount: api.limit_amount,
     pinned: api.pinned === 1,
     displayOrder: api.display_order,
   };
@@ -40,7 +40,7 @@ function toDomainBudget(api: ApiBudget): Budget {
 
 export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScreenProps) {
   const [settings, setSettings] = useState<Settings>({
-    monthlyIncome: 0, fixedCostTotal: 0, savingsTarget: 0,
+    monthlyIncome: 0, fixedCostTotal: 0, monthlySavingsTarget: 0,
   });
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [showSettings, setShowSettings] = useState(false);
@@ -74,7 +74,7 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
     source: t.source || 'csv',
   }));
 
-  const disposable = settings.monthlyIncome - settings.fixedCostTotal - settings.savingsTarget;
+  const disposable = settings.monthlyIncome - settings.fixedCostTotal - settings.monthlySavingsTarget;
   const remaining = remainingFreeToSpend(settings, domainTxns);
   const expenses = totalExpenses(domainTxns);
 
@@ -128,7 +128,7 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
             貯蓄目標 (円)
             <input
               type="number" inputMode="numeric"
-              value={formSavings || settings.savingsTarget || ''}
+              value={formSavings || settings.monthlySavingsTarget || ''}
               onChange={(e) => setFormSavings(e.target.value)}
             />
           </label>
@@ -140,7 +140,7 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
                 await updateSettings({
                   monthly_income: parseInt(formIncome) || settings.monthlyIncome,
                   fixed_cost_total: parseInt(formFixed) || settings.fixedCostTotal,
-                  savings_target: parseInt(formSavings) || settings.savingsTarget,
+                  monthly_savings_target: parseInt(formSavings) || settings.monthlySavingsTarget,
                 });
                 await loadSettings();
                 setShowSettings(false);
@@ -160,7 +160,7 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
         <button className="settings-gear" onClick={() => {
           setFormIncome(String(settings.monthlyIncome));
           setFormFixed(String(settings.fixedCostTotal));
-          setFormSavings(String(settings.savingsTarget));
+          setFormSavings(String(settings.monthlySavingsTarget));
           setShowSettings(true);
         }}>
           ⚙ 設定

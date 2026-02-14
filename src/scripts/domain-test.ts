@@ -62,7 +62,7 @@ function makeTxn(overrides: Partial<Transaction> = {}): Transaction {
 const baseSettings: Settings = {
   monthlyIncome: 300000,
   fixedCostTotal: 100000,
-  savingsTarget: 50000,
+  monthlySavingsTarget: 50000,
 };
 
 // --- Tests ---
@@ -103,7 +103,7 @@ test('remainingFreeToSpend: can go negative (overspent)', () => {
 });
 
 test('remainingFreeToSpend: zero settings = negative of spending', () => {
-  const zero: Settings = { monthlyIncome: 0, fixedCostTotal: 0, savingsTarget: 0 };
+  const zero: Settings = { monthlyIncome: 0, fixedCostTotal: 0, monthlySavingsTarget: 0 };
   const txns = [makeTxn({ amount: -5000 })];
   assertEq(remainingFreeToSpend(zero, txns), -5000, 'remaining');
 });
@@ -111,7 +111,7 @@ test('remainingFreeToSpend: zero settings = negative of spending', () => {
 test('categoryRemaining: basic', () => {
   const budget: Budget = {
     id: 'b1', month: '2025-01', category: '食費',
-    amount: 30000, pinned: true, displayOrder: 0,
+    limitAmount: 30000, pinned: true, displayOrder: 0,
   };
   const txns = [
     makeTxn({ amount: -8000, category: '食費' }),
@@ -126,7 +126,7 @@ test('categoryRemaining: basic', () => {
 test('categoryRemaining: overspent', () => {
   const budget: Budget = {
     id: 'b1', month: '2025-01', category: '食費',
-    amount: 5000, pinned: true, displayOrder: 0,
+    limitAmount: 5000, pinned: true, displayOrder: 0,
   };
   const txns = [makeTxn({ amount: -8000, category: '食費' })];
   const status = categoryRemaining(budget, txns);

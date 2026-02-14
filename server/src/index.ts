@@ -144,7 +144,7 @@ app.get('/settings', (_req, res) => {
     res.json({
       monthly_income: row.monthly_income,
       fixed_cost_total: row.fixed_cost_total,
-      savings_target: row.savings_target,
+      monthly_savings_target: row.monthly_savings_target,
     });
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -155,17 +155,17 @@ app.get('/settings', (_req, res) => {
 // PUT /settings
 app.put('/settings', (req, res) => {
   try {
-    const { monthly_income, fixed_cost_total, savings_target } = req.body as Settings;
+    const { monthly_income, fixed_cost_total, monthly_savings_target } = req.body as Settings;
     db.prepare(`
-      UPDATE settings SET monthly_income = ?, fixed_cost_total = ?, savings_target = ?
+      UPDATE settings SET monthly_income = ?, fixed_cost_total = ?, monthly_savings_target = ?
       WHERE id = 1
-    `).run(monthly_income, fixed_cost_total, savings_target);
+    `).run(monthly_income, fixed_cost_total, monthly_savings_target);
 
     const row = db.prepare('SELECT * FROM settings WHERE id = 1').get() as Settings & { id: number };
     res.json({
       monthly_income: row.monthly_income,
       fixed_cost_total: row.fixed_cost_total,
-      savings_target: row.savings_target,
+      monthly_savings_target: row.monthly_savings_target,
     });
   } catch (error) {
     console.error('Error updating settings:', error);
@@ -199,14 +199,14 @@ app.get('/budgets', (req, res) => {
 // POST /budgets
 app.post('/budgets', (req, res) => {
   try {
-    const { month, category, amount, pinned = 0, display_order = 0 } = req.body as Budget;
+    const { month, category, limit_amount, pinned = 0, display_order = 0 } = req.body as Budget;
     const id = generateId();
     db.prepare(`
-      INSERT INTO budgets (id, month, category, amount, pinned, display_order)
+      INSERT INTO budgets (id, month, category, limit_amount, pinned, display_order)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(month, category) DO UPDATE SET
-        amount = excluded.amount, pinned = excluded.pinned, display_order = excluded.display_order
-    `).run(id, month, category, amount, pinned, display_order);
+        limit_amount = excluded.limit_amount, pinned = excluded.pinned, display_order = excluded.display_order
+    `).run(id, month, category, limit_amount, pinned, display_order);
 
     const created = db.prepare('SELECT * FROM budgets WHERE month = ? AND category = ?')
       .get(month, category) as Budget;
@@ -231,6 +231,58 @@ app.delete('/budgets/:id', (req, res) => {
   } catch (error) {
     console.error('Error deleting budget:', error);
     res.status(500).json({ error: 'Failed to delete budget' });
+  }
+});
+
+// --- Summary (server-side Definition A) ---
+
+interface CategoryTotalRow {
+  category: string;
+  spent: number;
+}
+
+// GET /summary?month=YYYY-MM
+app.get('/summary', (req, res) => {
+  try {
+    const month = req.query.month as string | undefined;
+    if (!month) {
+      res.status(400).json({ error: 'month query parameter required (YYYY-MM)' });
+      return;
+    }
+
+    // Load settings
+    const settings = db.prepare('SELECT * FROM settings WHERE id = 1').get() as Settings & { id: number };
+
+    // Sum expenses (amount < 0) for the month
+    const expenseRow = db.prepare(`
+      SELECT COALESCE(SUM(ABS(amount)), 0) as total
+      FROM transactions
+      WHERE date LIKE ? || '%' AND amount < 0
+    `).get(month) as { total: number };
+
+    const totalExpenses = expenseRow.total;
+    const disposable = settings.monthly_income - settings.fixed_cost_total - settings.monthly_savings_target;
+    const remainingFreeToSpend = disposable - totalExpenses;
+
+    // Category breakdown
+    const categoryRows = db.prepare(`
+      SELECT category, SUM(ABS(amount)) as spent
+      FROM transactions
+      WHERE date LIKE ? || '%' AND amount < 0
+      GROUP BY category
+      ORDER BY spent DESC
+    `).all(month) as CategoryTotalRow[];
+
+    res.json({
+      month,
+      remaining_free_to_spend: remainingFreeToSpend,
+      total_expenses: totalExpenses,
+      disposable,
+      category_totals: categoryRows,
+    });
+  } catch (error) {
+    console.error('Error computing summary:', error);
+    res.status(500).json({ error: 'Failed to compute summary' });
   }
 });
 
