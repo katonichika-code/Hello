@@ -14,7 +14,8 @@
     "smoke": "tsx server/scripts/smoke-test.ts",
     "smoke:proxy": "tsx src/scripts/smoke-proxy.ts",
     "csvcheck": "tsx src/scripts/csv-check.ts",
-    "ruleeval": "tsx src/scripts/rule-eval.ts"
+    "ruleeval": "tsx src/scripts/rule-eval.ts",
+    "test:domain": "tsx src/scripts/domain-test.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
