@@ -98,6 +98,8 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
             amount: -positiveAmount, // Expenses are negative
             category: row.predictedCategory,
             account: 'card' as const,
+            wallet: 'personal' as const,
+            source: 'csv' as const,
             description: row.description,
             hash,
           };
