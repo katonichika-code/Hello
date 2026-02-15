@@ -3,6 +3,7 @@ import { SankeyDiagram } from '../../components/SankeyDiagram';
 import { TransactionList } from '../../components/TransactionList';
 import { CsvImport } from '../../components/CsvImport';
 import { UncategorizedInbox } from '../../components/UncategorizedInbox';
+import { BackupRestore } from '../../components/BackupRestore';
 
 export interface AnalyticsScreenProps {
   transactions: Transaction[];
@@ -26,6 +27,9 @@ export function AnalyticsScreen({ transactions, onRefresh }: AnalyticsScreenProp
         <h3>取引一覧</h3>
         <TransactionList transactions={transactions} onUpdate={onRefresh} />
       </div>
+
+      {/* Backup / Restore (collapsible) */}
+      <BackupRestore onRestore={onRefresh} />
     </div>
   );
 }
