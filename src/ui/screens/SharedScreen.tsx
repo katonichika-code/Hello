@@ -185,7 +185,7 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
         throw new Error('共有エクスポートファイルの形式が不正です');
       }
 
-      // Capture before-state for delta
+      // Capture before-state for delta (both expenses and budgets)
       const beforeTxns = await db.transactions
         .where('[monthKey+wallet]')
         .equals([selectedMonth, 'shared'])
@@ -193,6 +193,11 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
       const beforeExpenses = beforeTxns
         .filter((t) => t.amount < 0)
         .reduce((s, t) => s + Math.abs(t.amount), 0);
+      const beforeBudgets = await db.budgets
+        .where('[month+wallet]')
+        .equals([selectedMonth, 'shared'])
+        .toArray();
+      const beforeBudgetTotal = beforeBudgets.reduce((s, b) => s + b.limit_amount, 0);
 
       // Import transactions — dedup by hash
       let imported = 0;
@@ -253,9 +258,12 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
 
       let deltaLine = '';
       if (budgetTotal > 0) {
-        // Show remaining change: (budgetTotal - afterExpenses) vs (budgetTotal - beforeExpenses)
-        // remaining delta = -(afterExpenses - beforeExpenses) = beforeExpenses - afterExpenses
-        const remainingDelta = beforeExpenses - afterExpenses;
+        // remaining = budgetTotal - expenses; show delta of remaining
+        const beforeRemaining = beforeBudgetTotal > 0
+          ? beforeBudgetTotal - beforeExpenses
+          : -beforeExpenses;
+        const afterRemaining = budgetTotal - afterExpenses;
+        const remainingDelta = afterRemaining - beforeRemaining;
         if (remainingDelta !== 0) {
           deltaLine = `残り ${remainingDelta > 0 ? '+' : ''}${formatJPY(remainingDelta)}`;
         }
@@ -334,14 +342,24 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
         </div>
       )}
 
-      {/* Total shared expenses */}
-      <div className="shared-total-card">
-        <div className="shared-label">共有ウォレット合計</div>
-        <div className="shared-amount">{formatJPY(expenses)}</div>
-        <div className="shared-per-person">
-          一人あたり {formatJPY(Math.round(expenses / 2))}
-        </div>
-      </div>
+      {/* Shared budget remaining hero */}
+      {(() => {
+        const budgetTotal = budgets.reduce((s, b) => s + b.limitAmount, 0);
+        const sharedRemaining = budgetTotal - expenses;
+        const hasBudgets = budgets.length > 0;
+        return (
+          <div className={`shared-total-card ${hasBudgets && sharedRemaining < 0 ? 'overspent' : ''}`}>
+            <div className="shared-label">{hasBudgets ? '共有予算の残り' : '共有支出合計'}</div>
+            <div className="shared-amount">{formatJPY(hasBudgets ? sharedRemaining : expenses)}</div>
+            <div className="shared-per-person">
+              {hasBudgets
+                ? `支出 ${formatJPY(expenses)} / 予算 ${formatJPY(budgetTotal)}`
+                : `一人あたり ${formatJPY(Math.round(expenses / 2))}`
+              }
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Category breakdown */}
       {breakdown.length > 0 && (

@@ -13,7 +13,7 @@ export function RemainingCard({ remaining, totalExpenses, disposable }: Remainin
 
   return (
     <div className={`remaining-card ${isOver ? 'overspent' : ''}`}>
-      <div className="remaining-label">使えるお金</div>
+      <div className="remaining-label">自由に使っていい残り</div>
       <div className="remaining-amount">{formatJPY(remaining)}</div>
       <div className="remaining-bar-track">
         <div

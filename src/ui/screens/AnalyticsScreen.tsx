@@ -63,7 +63,7 @@ export function AnalyticsScreen({ transactions, onRefresh }: AnalyticsScreenProp
           <div className="analytics-card-value expense">{formatJPY(expenseTotal)}</div>
         </div>
         <div className="analytics-card">
-          <div className="analytics-card-label">収支</div>
+          <div className="analytics-card-label">ネット</div>
           <div className={`analytics-card-value ${net >= 0 ? 'income' : 'expense'}`}>{formatJPY(net)}</div>
         </div>
       </div>
