@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Transaction, ApiSettings, ApiBudget } from '../../db/repo';
 import { getSettings, getBudgets } from '../../db/repo';
 import {
@@ -67,24 +67,27 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
   useEffect(() => { loadSettings(); }, [loadSettings]);
   useEffect(() => { loadBudgets(); }, [loadBudgets]);
 
-  // Domain computations
-  const domainTxns = transactions.map((t) => ({
+  // Memoized domain computations — avoid recalc on unrelated re-renders
+  const domainTxns = useMemo(() => transactions.map((t) => ({
     ...t,
     wallet: t.wallet || 'personal',
     source: t.source || 'csv',
-  }));
+  })), [transactions]);
 
-  const disposable = settings.monthlyIncome - settings.fixedCostTotal - settings.monthlySavingsTarget;
-  const remaining = remainingFreeToSpend(settings, domainTxns);
-  const expenses = totalExpenses(domainTxns);
+  const disposable = useMemo(
+    () => settings.monthlyIncome - settings.fixedCostTotal - settings.monthlySavingsTarget,
+    [settings],
+  );
+  const remaining = useMemo(() => remainingFreeToSpend(settings, domainTxns), [settings, domainTxns]);
+  const expenses = useMemo(() => totalExpenses(domainTxns), [domainTxns]);
+  const budgetStatuses = useMemo(() => budgets.map((b) => categoryRemaining(b, domainTxns)), [budgets, domainTxns]);
 
-  const budgetStatuses = budgets.map((b) => categoryRemaining(b, domainTxns));
+  const recent = useMemo(() => transactions.slice(0, 5), [transactions]);
 
-  // Recent transactions (last 5)
-  const recent = [...transactions].slice(0, 5);
-
-  const formatJPY = (n: number) =>
-    new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(n);
+  const formatJPY = useMemo(() => {
+    const fmt = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
+    return (n: number) => fmt.format(n);
+  }, []);
 
   const needsSetup = settings.monthlyIncome === 0;
 

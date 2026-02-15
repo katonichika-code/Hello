@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Transaction } from '../../db/repo';
 import { createTransaction, generateHash } from '../../db/repo';
 import { categorize, getAllCategories } from '../../api/categorizer';
@@ -14,20 +14,22 @@ export interface SharedScreenProps {
 }
 
 export function SharedScreen({ transactions, onRefresh }: SharedScreenProps) {
-  const shared = forWallet(
+  const shared = useMemo(() => forWallet(
     transactions.map((t) => ({
       ...t,
       wallet: t.wallet || 'personal',
       source: t.source || 'csv',
     })),
     'shared',
-  );
+  ), [transactions]);
 
-  const expenses = totalExpenses(shared);
-  const breakdown = categoryBreakdown(shared);
+  const expenses = useMemo(() => totalExpenses(shared), [shared]);
+  const breakdown = useMemo(() => categoryBreakdown(shared), [shared]);
 
-  const formatJPY = (n: number) =>
-    new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(n);
+  const formatJPY = useMemo(() => {
+    const fmt = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
+    return (n: number) => fmt.format(n);
+  }, []);
 
   // Quick entry state
   const [amount, setAmount] = useState('');
@@ -72,7 +74,7 @@ export function SharedScreen({ transactions, onRefresh }: SharedScreenProps) {
     }
   };
 
-  const recent = shared.filter((t) => t.amount < 0).slice(0, 10);
+  const recent = useMemo(() => shared.filter((t) => t.amount < 0).slice(0, 10), [shared]);
 
   return (
     <div className="screen-content shared-screen">

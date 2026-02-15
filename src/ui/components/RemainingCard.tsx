@@ -1,3 +1,6 @@
+const jpyFmt = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
+const formatJPY = (n: number) => jpyFmt.format(n);
+
 interface RemainingCardProps {
   remaining: number;
   totalExpenses: number;
@@ -7,9 +10,6 @@ interface RemainingCardProps {
 export function RemainingCard({ remaining, totalExpenses, disposable }: RemainingCardProps) {
   const pct = disposable > 0 ? Math.max(0, remaining / disposable) * 100 : 0;
   const isOver = remaining < 0;
-
-  const formatJPY = (n: number) =>
-    new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(n);
 
   return (
     <div className={`remaining-card ${isOver ? 'overspent' : ''}`}>

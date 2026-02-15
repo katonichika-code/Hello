@@ -1,5 +1,8 @@
 import type { BudgetStatus } from '../../domain/types';
 
+const jpyFmt = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
+const formatJPY = (n: number) => jpyFmt.format(n);
+
 interface BudgetCardProps {
   status: BudgetStatus;
 }
@@ -9,9 +12,6 @@ export function BudgetCard({ status }: BudgetCardProps) {
     ? Math.min((status.spent / status.budgeted) * 100, 100)
     : 0;
   const isOver = status.remaining < 0;
-
-  const formatJPY = (n: number) =>
-    new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(n);
 
   return (
     <div className={`budget-card ${isOver ? 'over' : ''}`}>
