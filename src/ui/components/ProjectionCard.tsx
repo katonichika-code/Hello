@@ -29,8 +29,7 @@ export function ProjectionCard({ transactions }: ProjectionCardProps) {
     return { income: inc, expenseAbs: exp, net: inc - exp };
   }, [transactions]);
 
-  // No data → don't render
-  if (income === 0 && expenseAbs === 0) return null;
+  const hasData = income > 0 || expenseAbs > 0;
 
   // Projections: currentSavings = 0, projected = 0 + net * N
   const projections = HORIZONS.map((h) => ({
@@ -47,43 +46,52 @@ export function ProjectionCard({ transactions }: ProjectionCardProps) {
 
       {open && (
         <div className="projection-body">
-          {/* Current month net */}
-          <div className="projection-current">
-            <div className="projection-current-label">今月の収支</div>
-            <div className={`projection-current-value ${net >= 0 ? 'positive' : 'negative'}`}>
-              {formatJPY(net)}
+          {!hasData ? (
+            <div className="projection-empty">
+              <div className="projection-empty-text">まだペースが算出できません</div>
+              <div className="projection-empty-hint">支出を追加するかCSVをインポートしてください</div>
             </div>
-            <div className="projection-breakdown">
-              収入 {formatJPY(income)} / 支出 {formatJPY(expenseAbs)}
-            </div>
-          </div>
-
-          {/* Projection bars */}
-          <div className="projection-horizons">
-            {projections.map((p) => {
-              const isPositive = p.projected >= 0;
-              return (
-                <div key={p.months} className="projection-row">
-                  <span className="projection-label">{p.label}</span>
-                  <div className="projection-bar-track">
-                    <div
-                      className={`projection-bar-fill ${isPositive ? 'positive' : 'negative'}`}
-                      style={{
-                        width: `${Math.min(Math.abs(p.projected) / (Math.max(income, expenseAbs, 1) * 12) * 100, 100)}%`,
-                      }}
-                    />
-                  </div>
-                  <span className={`projection-value ${isPositive ? 'positive' : 'negative'}`}>
-                    {formatJPY(p.projected)}
-                  </span>
+          ) : (
+            <>
+              {/* Current month net */}
+              <div className="projection-current">
+                <div className="projection-current-label">今月の収支</div>
+                <div className={`projection-current-value ${net >= 0 ? 'positive' : 'negative'}`}>
+                  {formatJPY(net)}
                 </div>
-              );
-            })}
-          </div>
+                <div className="projection-breakdown">
+                  収入 {formatJPY(income)} / 支出 {formatJPY(expenseAbs)}
+                </div>
+              </div>
 
-          <div className="projection-note">
-            今月のペースが続いた場合の目安です
-          </div>
+              {/* Projection bars */}
+              <div className="projection-horizons">
+                {projections.map((p) => {
+                  const isPositive = p.projected >= 0;
+                  return (
+                    <div key={p.months} className="projection-row">
+                      <span className="projection-label">{p.label}</span>
+                      <div className="projection-bar-track">
+                        <div
+                          className={`projection-bar-fill ${isPositive ? 'positive' : 'negative'}`}
+                          style={{
+                            width: `${Math.min(Math.abs(p.projected) / (Math.max(income, expenseAbs, 1) * 12) * 100, 100)}%`,
+                          }}
+                        />
+                      </div>
+                      <span className={`projection-value ${isPositive ? 'positive' : 'negative'}`}>
+                        {formatJPY(p.projected)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="projection-note">
+                今月のペースが続いた場合の目安です
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

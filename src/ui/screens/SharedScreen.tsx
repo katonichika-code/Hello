@@ -236,7 +236,7 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
         }
       }
 
-      // After-state for delta
+      // After-state: compute remaining delta (budget-based when budgets exist)
       const afterTxns = await db.transactions
         .where('[monthKey+wallet]')
         .equals([selectedMonth, 'shared'])
@@ -244,12 +244,32 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
       const afterExpenses = afterTxns
         .filter((t) => t.amount < 0)
         .reduce((s, t) => s + Math.abs(t.amount), 0);
-      const delta = afterExpenses - beforeExpenses;
+
+      const afterBudgets = await db.budgets
+        .where('[month+wallet]')
+        .equals([selectedMonth, 'shared'])
+        .toArray();
+      const budgetTotal = afterBudgets.reduce((s, b) => s + b.limit_amount, 0);
+
+      let deltaLine = '';
+      if (budgetTotal > 0) {
+        // Show remaining change: (budgetTotal - afterExpenses) vs (budgetTotal - beforeExpenses)
+        // remaining delta = -(afterExpenses - beforeExpenses) = beforeExpenses - afterExpenses
+        const remainingDelta = beforeExpenses - afterExpenses;
+        if (remainingDelta !== 0) {
+          deltaLine = `残り ${remainingDelta > 0 ? '+' : ''}${formatJPY(remainingDelta)}`;
+        }
+      } else {
+        const expenseDelta = afterExpenses - beforeExpenses;
+        if (expenseDelta !== 0) {
+          deltaLine = `共有支出 ${expenseDelta > 0 ? '+' : ''}${formatJPY(expenseDelta)}`;
+        }
+      }
 
       const lines = [
         `取引 ${imported}件追加, ${skipped}件スキップ`,
         budgetCount > 0 ? `予算 ${budgetCount}件更新` : '',
-        delta !== 0 ? `共有支出 ${delta > 0 ? '+' : ''}${formatJPY(delta)}` : '',
+        deltaLine,
       ].filter(Boolean);
 
       setShareStatus({ type: 'ok', msg: lines.join('\n') });

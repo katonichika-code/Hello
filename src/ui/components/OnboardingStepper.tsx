@@ -146,11 +146,15 @@ export function OnboardingStepper({ onComplete }: OnboardingStepperProps) {
           </div>
         )}
 
-        {/* Step 2: Personal budgets */}
+        {/* Step 2: Personal budgets (minimum 3 required) */}
         {step === 1 && (
           <div className="onboarding-step">
             <h2>個人の予算</h2>
-            <p className="onboarding-desc">ホーム画面に表示するカテゴリを選択</p>
+            <p className="onboarding-desc">
+              ホーム画面に表示するカテゴリを選択
+              <br />
+              <span className="onboarding-hint">3つ以上選択してください（{personalCats.size}/3）</span>
+            </p>
             <div className="onboarding-cats">
               {BUDGET_CATEGORIES.map((c) => (
                 <div key={c} className={`onboarding-cat-row ${personalCats.has(c) ? 'selected' : ''}`}>
@@ -174,16 +178,20 @@ export function OnboardingStepper({ onComplete }: OnboardingStepperProps) {
             </div>
             <div className="onboarding-nav">
               <button className="onboarding-back" onClick={() => setStep(0)}>戻る</button>
-              <button className="onboarding-next" onClick={() => setStep(2)}>次へ</button>
+              <button className="onboarding-next" disabled={personalCats.size < 3} onClick={() => setStep(2)}>次へ</button>
             </div>
           </div>
         )}
 
-        {/* Step 3: Shared budgets */}
+        {/* Step 3: Shared budgets (optional) */}
         {step === 2 && (
           <div className="onboarding-step">
             <h2>共有の予算</h2>
-            <p className="onboarding-desc">パートナーとの共有カテゴリを選択</p>
+            <p className="onboarding-desc">
+              パートナーとの共有カテゴリを選択
+              <br />
+              <span className="onboarding-hint">スキップも可能です</span>
+            </p>
             <div className="onboarding-cats">
               {BUDGET_CATEGORIES.map((c) => (
                 <div key={c} className={`onboarding-cat-row ${sharedCats.has(c) ? 'selected' : ''}`}>
@@ -207,7 +215,9 @@ export function OnboardingStepper({ onComplete }: OnboardingStepperProps) {
             </div>
             <div className="onboarding-nav">
               <button className="onboarding-back" onClick={() => setStep(1)}>戻る</button>
-              <button className="onboarding-next" onClick={() => setStep(3)}>次へ</button>
+              <button className="onboarding-next" onClick={() => setStep(3)}>
+                {sharedCats.size > 0 ? '次へ' : 'スキップ'}
+              </button>
             </div>
           </div>
         )}
