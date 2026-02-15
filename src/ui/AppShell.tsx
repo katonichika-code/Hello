@@ -15,7 +15,21 @@ export function AppShell() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth());
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [storagePersisted, setStoragePersisted] = useState<boolean | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Request persistent storage (iOS Safari evicts non-persistent IndexedDB)
+  useEffect(() => {
+    (async () => {
+      if (navigator.storage?.persist) {
+        const granted = await navigator.storage.persist();
+        setStoragePersisted(granted);
+        if (import.meta.env.DEV) {
+          console.log(`[Kakeibo] storage.persist() → ${granted}`);
+        }
+      }
+    })();
+  }, []);
 
   const fetchTransactions = useCallback(async () => {
     try {
@@ -99,6 +113,13 @@ export function AppShell() {
           ))}
         </select>
       </header>
+
+      {/* Storage hint — only if persist denied and not installed as PWA */}
+      {storagePersisted === false && !window.matchMedia('(display-mode: standalone)').matches && (
+        <div className="persist-hint" onClick={() => setStoragePersisted(null)}>
+          ホーム画面に追加するとデータが安全に保持されます
+        </div>
+      )}
 
       {/* Screens */}
       <div className="screen-container" ref={scrollRef}>
