@@ -37,6 +37,7 @@ export interface DbBudget {
   limit_amount: number;
   pinned: number; // 0 or 1
   display_order: number;
+  wallet: string; // 'personal' | 'shared'
 }
 
 export interface DbMerchantMapping {
@@ -76,6 +77,21 @@ class KakeiboDB extends Dexie {
       return tx.table('transactions').toCollection().modify((txn: DbTransaction) => {
         if (!txn.monthKey && txn.date) {
           txn.monthKey = txn.date.slice(0, 7);
+        }
+      });
+    });
+
+    // v3 — add wallet to budgets; upsert key becomes [month+wallet+category]
+    this.version(3).stores({
+      transactions: 'id, date, monthKey, [monthKey+wallet], &hash, category, wallet, merchant_key, category_source',
+      settings: 'id',
+      budgets: 'id, [month+wallet+category], [month+wallet], month, wallet, pinned, display_order',
+      merchant_map: 'merchant_key',
+    }).upgrade((tx) => {
+      // Backfill wallet='personal' for existing budgets
+      return tx.table('budgets').toCollection().modify((b: DbBudget) => {
+        if (!b.wallet) {
+          b.wallet = 'personal';
         }
       });
     });

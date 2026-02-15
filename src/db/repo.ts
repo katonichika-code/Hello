@@ -175,7 +175,13 @@ export async function updateSettings(data: ApiSettings): Promise<ApiSettings> {
 
 // --- Budgets ---
 
-export async function getBudgets(month?: string): Promise<ApiBudget[]> {
+export async function getBudgets(month?: string, wallet?: string): Promise<ApiBudget[]> {
+  if (month && wallet) {
+    return db.budgets
+      .where('[month+wallet]')
+      .equals([month, wallet])
+      .sortBy('display_order');
+  }
   if (month) {
     return db.budgets
       .where('month')
@@ -186,10 +192,12 @@ export async function getBudgets(month?: string): Promise<ApiBudget[]> {
 }
 
 export async function createBudget(data: Omit<ApiBudget, 'id'>): Promise<ApiBudget> {
-  // Upsert: check for existing [month+category]
+  const wallet = data.wallet || 'personal';
+
+  // Upsert: check for existing [month+wallet+category]
   const existing = await db.budgets
-    .where('[month+category]')
-    .equals([data.month, data.category])
+    .where('[month+wallet+category]')
+    .equals([data.month, wallet, data.category])
     .first();
 
   if (existing) {
@@ -198,10 +206,10 @@ export async function createBudget(data: Omit<ApiBudget, 'id'>): Promise<ApiBudg
       pinned: data.pinned,
       display_order: data.display_order,
     });
-    return { ...existing, ...data };
+    return { ...existing, ...data, wallet };
   }
 
-  const budget: ApiBudget = { id: generateId(), ...data };
+  const budget: ApiBudget = { id: generateId(), ...data, wallet };
   await db.budgets.add(budget);
   return budget;
 }

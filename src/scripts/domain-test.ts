@@ -111,7 +111,7 @@ test('remainingFreeToSpend: zero settings = negative of spending', () => {
 test('categoryRemaining: basic', () => {
   const budget: Budget = {
     id: 'b1', month: '2025-01', category: '食費',
-    limitAmount: 30000, pinned: true, displayOrder: 0,
+    limitAmount: 30000, pinned: true, displayOrder: 0, wallet: 'personal',
   };
   const txns = [
     makeTxn({ amount: -8000, category: '食費' }),
@@ -126,7 +126,7 @@ test('categoryRemaining: basic', () => {
 test('categoryRemaining: overspent', () => {
   const budget: Budget = {
     id: 'b1', month: '2025-01', category: '食費',
-    limitAmount: 5000, pinned: true, displayOrder: 0,
+    limitAmount: 5000, pinned: true, displayOrder: 0, wallet: 'personal',
   };
   const txns = [makeTxn({ amount: -8000, category: '食費' })];
   const status = categoryRemaining(budget, txns);

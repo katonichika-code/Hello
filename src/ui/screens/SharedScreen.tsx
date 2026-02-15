@@ -1,19 +1,36 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Transaction } from '../../db/repo';
-import { createTransaction, generateHash } from '../../db/repo';
+import { createTransaction, generateHash, getBudgets, type ApiBudget } from '../../db/repo';
 import { categorize, getAllCategories } from '../../api/categorizer';
 import {
   forWallet,
   totalExpenses,
   categoryBreakdown,
+  categoryRemaining,
 } from '../../domain/computations';
+import type { Budget } from '../../domain/types';
+import { BudgetCard } from '../components/BudgetCard';
+
+/** Convert API budget to domain Budget */
+function toDomainBudget(api: ApiBudget): Budget {
+  return {
+    id: api.id,
+    month: api.month,
+    category: api.category,
+    limitAmount: api.limit_amount,
+    pinned: api.pinned === 1,
+    displayOrder: api.display_order,
+    wallet: api.wallet || 'shared',
+  };
+}
 
 export interface SharedScreenProps {
   transactions: Transaction[];
+  selectedMonth: string;
   onRefresh: () => void;
 }
 
-export function SharedScreen({ transactions, onRefresh }: SharedScreenProps) {
+export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedScreenProps) {
   const shared = useMemo(() => forWallet(
     transactions.map((t) => ({
       ...t,
@@ -30,6 +47,20 @@ export function SharedScreen({ transactions, onRefresh }: SharedScreenProps) {
     const fmt = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
     return (n: number) => fmt.format(n);
   }, []);
+
+  // Shared budgets
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+
+  const loadBudgets = useCallback(async () => {
+    try {
+      const b = await getBudgets(selectedMonth, 'shared');
+      setBudgets(b.filter((x) => x.pinned === 1).map(toDomainBudget));
+    } catch { /* use empty */ }
+  }, [selectedMonth]);
+
+  useEffect(() => { loadBudgets(); }, [loadBudgets]);
+
+  const budgetStatuses = useMemo(() => budgets.map((b) => categoryRemaining(b, shared)), [budgets, shared]);
 
   // Quick entry state
   const [amount, setAmount] = useState('');
@@ -95,6 +126,15 @@ export function SharedScreen({ transactions, onRefresh }: SharedScreenProps) {
               <span className="shared-cat">{c.category}</span>
               <span className="shared-cat-amount">{formatJPY(c.spent)}</span>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tracked category budget cards */}
+      {budgetStatuses.length > 0 && (
+        <div className="budget-cards">
+          {budgetStatuses.map((s) => (
+            <BudgetCard key={s.category} status={s} />
           ))}
         </div>
       )}

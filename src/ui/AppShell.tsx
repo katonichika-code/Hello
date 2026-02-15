@@ -124,7 +124,7 @@ export function AppShell() {
       {/* Screens */}
       <div className="screen-container" ref={scrollRef}>
         <div className="screen">
-          <SharedScreen transactions={transactions} onRefresh={fetchTransactions} />
+          <SharedScreen transactions={transactions} selectedMonth={selectedMonth} onRefresh={fetchTransactions} />
         </div>
         <div className="screen">
           <HomeScreen

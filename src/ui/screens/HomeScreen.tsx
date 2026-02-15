@@ -35,6 +35,7 @@ function toDomainBudget(api: ApiBudget): Budget {
     limitAmount: api.limit_amount,
     pinned: api.pinned === 1,
     displayOrder: api.display_order,
+    wallet: api.wallet || 'personal',
   };
 }
 
@@ -59,7 +60,7 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
 
   const loadBudgets = useCallback(async () => {
     try {
-      const b = await getBudgets(selectedMonth);
+      const b = await getBudgets(selectedMonth, 'personal');
       setBudgets(b.filter((x) => x.pinned === 1).map(toDomainBudget));
     } catch { /* use empty */ }
   }, [selectedMonth]);

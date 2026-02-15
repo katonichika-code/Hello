@@ -18,6 +18,7 @@ export interface Budget {
   limitAmount: number;         // JPY budget limit
   pinned: boolean;             // shown on Home
   displayOrder: number;        // sort order on Home
+  wallet: string;              // 'personal' | 'shared'
 }
 
 /** Canonical transaction (superset of legacy fields) */
