@@ -9,6 +9,7 @@ import {
 import type { Settings, Budget } from '../../domain/types';
 import { RemainingCard } from '../components/RemainingCard';
 import { BudgetCard } from '../components/BudgetCard';
+import { ProjectionCard } from '../components/ProjectionCard';
 import { QuickEntry } from '../components/QuickEntry';
 
 export interface HomeScreenProps {
@@ -205,6 +206,9 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
       {copyResult && (
         <div className="copy-result" onClick={() => setCopyResult(null)}>{copyResult}</div>
       )}
+
+      {/* Future projection — combined personal + shared */}
+      {!needsSetup && <ProjectionCard transactions={domainTxns} />}
 
       {/* Quick entry */}
       <QuickEntry onSaved={onRefresh} />
