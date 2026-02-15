@@ -185,6 +185,15 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
         throw new Error('共有エクスポートファイルの形式が不正です');
       }
 
+      // Capture before-state for delta
+      const beforeTxns = await db.transactions
+        .where('[monthKey+wallet]')
+        .equals([selectedMonth, 'shared'])
+        .toArray();
+      const beforeExpenses = beforeTxns
+        .filter((t) => t.amount < 0)
+        .reduce((s, t) => s + Math.abs(t.amount), 0);
+
       // Import transactions — dedup by hash
       let imported = 0;
       let skipped = 0;
@@ -227,11 +236,23 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
         }
       }
 
-      setShareStatus({
-        type: 'ok',
-        msg: `取引 ${imported}件追加, ${skipped}件スキップ` +
-          (budgetCount > 0 ? `, 予算 ${budgetCount}件` : ''),
-      });
+      // After-state for delta
+      const afterTxns = await db.transactions
+        .where('[monthKey+wallet]')
+        .equals([selectedMonth, 'shared'])
+        .toArray();
+      const afterExpenses = afterTxns
+        .filter((t) => t.amount < 0)
+        .reduce((s, t) => s + Math.abs(t.amount), 0);
+      const delta = afterExpenses - beforeExpenses;
+
+      const lines = [
+        `取引 ${imported}件追加, ${skipped}件スキップ`,
+        budgetCount > 0 ? `予算 ${budgetCount}件更新` : '',
+        delta !== 0 ? `共有支出 ${delta > 0 ? '+' : ''}${formatJPY(delta)}` : '',
+      ].filter(Boolean);
+
+      setShareStatus({ type: 'ok', msg: lines.join('\n') });
       loadBudgets();
       onRefresh();
     } catch (err) {
@@ -257,7 +278,11 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
               <h3>共有データ交換</h3>
               <button className="share-modal-close" onClick={() => setShowShare(false)}>&times;</button>
             </div>
-            <p className="share-modal-desc">共有ウォレットの取引と予算をパートナーと交換できます</p>
+            <p className="share-modal-desc">
+              共有ウォレットの取引と予算をパートナーと交換できます
+              <br />
+              <span className="share-modal-privacy">個人データは含まれません（共有のみ）</span>
+            </p>
             <div className="share-modal-actions">
               <button className="backup-btn-export" onClick={handleExportShared}>
                 エクスポート
@@ -279,9 +304,11 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
             </div>
             {shareImporting && <p className="share-modal-status">読み込み中...</p>}
             {shareStatus && (
-              <p className={`share-modal-status ${shareStatus.type === 'err' ? 'error' : 'success'}`}>
-                {shareStatus.msg}
-              </p>
+              <div className={`share-modal-status ${shareStatus.type === 'err' ? 'error' : 'success'}`}>
+                {shareStatus.msg.split('\n').map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              </div>
             )}
           </div>
         </div>

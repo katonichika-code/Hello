@@ -681,7 +681,8 @@
   padding: 0;
   line-height: 1;
 }
-.share-modal-desc { font-size: 0.8rem; color: var(--muted); margin: 0 0 1rem; }
+.share-modal-desc { font-size: 0.8rem; color: var(--muted); margin: 0 0 1rem; line-height: 1.5; }
+.share-modal-privacy { font-size: 0.7rem; color: var(--subtle); font-style: italic; }
 .share-modal-actions {
   display: flex;
   gap: 0.75rem;
