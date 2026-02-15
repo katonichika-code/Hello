@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Transaction, ApiSettings, ApiBudget } from '../../db/repo';
-import { getSettings, getBudgets } from '../../db/repo';
+import { getSettings, getBudgets, copyBudgetsFromPrevMonth } from '../../db/repo';
 import {
   remainingFreeToSpend,
   totalExpenses,
@@ -92,6 +92,22 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
 
   const needsSetup = settings.monthlyIncome === 0;
 
+  // Copy previous month budgets
+  const [copyResult, setCopyResult] = useState<string | null>(null);
+  const handleCopyBudgets = async () => {
+    try {
+      const result = await copyBudgetsFromPrevMonth(selectedMonth, 'personal');
+      if (result.created === 0 && result.updated === 0) {
+        setCopyResult('前月の予算がありません');
+      } else {
+        setCopyResult(`${result.created}件作成, ${result.updated}件更新`);
+      }
+      loadBudgets();
+    } catch {
+      setCopyResult('コピー失敗');
+    }
+  };
+
   return (
     <div className="screen-content home-screen">
       {/* Remaining Free-to-Spend */}
@@ -178,6 +194,16 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
             <BudgetCard key={s.category} status={s} />
           ))}
         </div>
+      )}
+
+      {/* Copy previous month budgets */}
+      {budgetStatuses.length === 0 && !needsSetup && (
+        <button className="copy-budgets-btn" onClick={handleCopyBudgets}>
+          先月の予算をコピー
+        </button>
+      )}
+      {copyResult && (
+        <div className="copy-result" onClick={() => setCopyResult(null)}>{copyResult}</div>
       )}
 
       {/* Quick entry */}

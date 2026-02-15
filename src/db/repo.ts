@@ -218,6 +218,50 @@ export async function deleteBudget(id: string): Promise<void> {
   await db.budgets.delete(id);
 }
 
+/**
+ * Copy budgets from the previous month into the target month for a given wallet.
+ * Uses upsert semantics via createBudget ([month+wallet+category]).
+ * Returns counts of created/updated budgets.
+ */
+export async function copyBudgetsFromPrevMonth(
+  targetMonth: string,
+  wallet: string,
+): Promise<{ created: number; updated: number }> {
+  // Compute previous month
+  const [y, m] = targetMonth.split('-').map(Number);
+  const prev = new Date(y, m - 2, 1); // m-1 is current (0-based), m-2 is previous
+  const prevMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+
+  const prevBudgets = await getBudgets(prevMonth, wallet);
+  if (prevBudgets.length === 0) {
+    return { created: 0, updated: 0 };
+  }
+
+  // Check existing for this month
+  const existing = await getBudgets(targetMonth, wallet);
+  const existingKeys = new Set(existing.map((b) => b.category));
+
+  let created = 0;
+  let updated = 0;
+  for (const b of prevBudgets) {
+    await createBudget({
+      month: targetMonth,
+      category: b.category,
+      limit_amount: b.limit_amount,
+      pinned: b.pinned,
+      display_order: b.display_order,
+      wallet,
+    });
+    if (existingKeys.has(b.category)) {
+      updated++;
+    } else {
+      created++;
+    }
+  }
+
+  return { created, updated };
+}
+
 // --- Merchant Map ---
 
 export async function getMerchantMap(): Promise<ApiMerchantMapping[]> {

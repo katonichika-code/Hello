@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Transaction } from '../../db/repo';
 import {
-  createTransaction, generateHash, getBudgets,
+  createTransaction, generateHash, getBudgets, copyBudgetsFromPrevMonth,
   bulkCreateTransactions, createBudget, deleteBudget,
   type ApiBudget, type TransactionInput,
 } from '../../db/repo';
@@ -111,6 +111,22 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
   };
 
   const recent = useMemo(() => shared.filter((t) => t.amount < 0).slice(0, 10), [shared]);
+
+  // Copy previous month budgets
+  const [copyResult, setCopyResult] = useState<string | null>(null);
+  const handleCopyBudgets = async () => {
+    try {
+      const result = await copyBudgetsFromPrevMonth(selectedMonth, 'shared');
+      if (result.created === 0 && result.updated === 0) {
+        setCopyResult('前月の予算がありません');
+      } else {
+        setCopyResult(`${result.created}件作成, ${result.updated}件更新`);
+      }
+      loadBudgets();
+    } catch {
+      setCopyResult('コピー失敗');
+    }
+  };
 
   // --- Shared exchange ---
   const [showShare, setShowShare] = useState(false);
@@ -299,6 +315,16 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
             <BudgetCard key={s.category} status={s} />
           ))}
         </div>
+      )}
+
+      {/* Copy previous month budgets */}
+      {budgetStatuses.length === 0 && (
+        <button className="copy-budgets-btn" onClick={handleCopyBudgets}>
+          先月の予算をコピー
+        </button>
+      )}
+      {copyResult && (
+        <div className="copy-result" onClick={() => setCopyResult(null)}>{copyResult}</div>
       )}
 
       {/* Quick entry for shared */}
