@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getTransactions, type Transaction } from '../db/repo';
+import { getTransactions, getSettings, getBudgets, type Transaction } from '../db/repo';
 import { ensureDefaults } from '../db/database';
 import { currentMonth } from '../domain/computations';
 import { HomeScreen } from './screens/HomeScreen';
 import { SharedScreen } from './screens/SharedScreen';
 import { AnalyticsScreen } from './screens/AnalyticsScreen';
+import { OnboardingStepper } from './components/OnboardingStepper';
 import { PageDots } from './components/PageDots';
 
 const SCREEN_LABELS = ['共有', 'ホーム', '分析'] as const;
@@ -16,7 +17,34 @@ export function AppShell() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [storagePersisted, setStoragePersisted] = useState<boolean | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Check if onboarding is needed (first run or missing settings)
+  useEffect(() => {
+    (async () => {
+      try {
+        await ensureDefaults();
+        const [settings, budgets] = await Promise.all([
+          getSettings(),
+          getBudgets(currentMonth()),
+        ]);
+        const needsOnboarding = settings.monthly_income === 0
+          && budgets.filter((b) => b.pinned === 1).length === 0;
+        setShowOnboarding(needsOnboarding);
+      } catch {
+        // Don't block app
+      } finally {
+        setOnboardingChecked(true);
+      }
+    })();
+  }, []);
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    fetchTransactions();
+  };
 
   // Request persistent storage (iOS Safari evicts non-persistent IndexedDB)
   useEffect(() => {
@@ -150,6 +178,11 @@ export function AppShell() {
 
       {/* Loading indicator */}
       {loading && <div className="loading-bar" />}
+
+      {/* Onboarding stepper */}
+      {onboardingChecked && showOnboarding && (
+        <OnboardingStepper onComplete={handleOnboardingComplete} />
+      )}
     </div>
   );
 }
