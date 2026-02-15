@@ -752,6 +752,32 @@
   gap: 0.75rem;
 }
 
+.analytics-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.analytics-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1rem 0.75rem;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.analytics-card-label {
+  font-size: 0.7rem;
+  color: var(--subtle);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+.analytics-card-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.analytics-card-value.income { color: var(--success); }
+.analytics-card-value.expense { color: var(--danger); }
+
 .collapsible-section {
   background: var(--surface);
   border-radius: var(--radius);
