@@ -154,11 +154,11 @@ export function BackupRestore({ onRestore }: BackupRestoreProps) {
       </h4>
 
       <div className="backup-actions">
-        <button className="btn-export" onClick={handleExport}>
+        <button className="backup-btn-export" onClick={handleExport}>
           JSON エクスポート
         </button>
 
-        <label className="btn-import">
+        <label className="backup-btn-import">
           JSON インポート
           <input
             ref={fileRef}

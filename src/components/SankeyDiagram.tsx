@@ -164,7 +164,6 @@ export function SankeyDiagram({ transactions }: SankeyDiagramProps) {
   if (expenses.length === 0) {
     return (
       <div className="sankey-diagram">
-        <h3>支出フロー</h3>
         <p className="no-data">支出データがありません</p>
       </div>
     );
@@ -172,7 +171,6 @@ export function SankeyDiagram({ transactions }: SankeyDiagramProps) {
 
   return (
     <div className="sankey-diagram">
-      <h3>支出フロー (支払元 → カテゴリ)</h3>
       <svg ref={svgRef}></svg>
     </div>
   );

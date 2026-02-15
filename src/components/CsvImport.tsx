@@ -174,8 +174,7 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
   };
 
   return (
-    <div className="csv-import">
-      <h3>CSV取り込み</h3>
+    <div className="csv-import-inner">
       <p className="csv-format">
         対応: 標準CSV / 銀行・カード明細CSV
       </p>
