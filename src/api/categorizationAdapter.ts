@@ -11,7 +11,7 @@
 
 import { categorize } from './categorizer';
 import { deriveMerchantKey } from './merchantKey';
-import type { ApiMerchantMapping } from './client';
+import type { ApiMerchantMapping } from '../db/repo';
 
 export interface CategorizationResult {
   category: string;

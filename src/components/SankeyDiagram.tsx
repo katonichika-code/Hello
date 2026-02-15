@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
-import type { Transaction } from '../api/client';
+import type { Transaction } from '../db/repo';
 
 interface SankeyDiagramProps {
   transactions: Transaction[];

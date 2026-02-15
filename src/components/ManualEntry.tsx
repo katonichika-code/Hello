@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { createTransaction, generateHash } from '../api/client';
+import { createTransaction, generateHash } from '../db/repo';
 import { categorize, getAllCategories } from '../api/categorizer';
 
 interface ManualEntryProps {

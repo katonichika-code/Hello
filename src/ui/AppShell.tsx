@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getTransactions, type Transaction } from '../api/client';
+import { getTransactions, type Transaction } from '../db/repo';
 import { currentMonth } from '../domain/computations';
 import { HomeScreen } from './screens/HomeScreen';
 import { SharedScreen } from './screens/SharedScreen';

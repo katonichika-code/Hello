@@ -1,4 +1,4 @@
-import type { Transaction } from '../../api/client';
+import type { Transaction } from '../../db/repo';
 import { SankeyDiagram } from '../../components/SankeyDiagram';
 import { TransactionList } from '../../components/TransactionList';
 import { CsvImport } from '../../components/CsvImport';

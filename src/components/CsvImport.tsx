@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { bulkCreateTransactions, generateHash, getMerchantMap } from '../api/client';
+import { bulkCreateTransactions, generateHash, getMerchantMap } from '../db/repo';
 import {
   decodeFileContent,
   parseCsvText,

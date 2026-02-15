@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { updateTransactionCategory, type Transaction } from '../api/client';
+import { updateTransactionCategory, type Transaction } from '../db/repo';
 import { getAllCategories } from '../api/categorizer';
 
 interface TransactionListProps {

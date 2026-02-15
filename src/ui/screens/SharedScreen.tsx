@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { Transaction } from '../../api/client';
-import { createTransaction, generateHash } from '../../api/client';
+import type { Transaction } from '../../db/repo';
+import { createTransaction, generateHash } from '../../db/repo';
 import { categorize, getAllCategories } from '../../api/categorizer';
 import {
   forWallet,

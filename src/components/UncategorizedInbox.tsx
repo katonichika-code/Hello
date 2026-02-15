@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import type { Transaction } from '../api/client';
+import type { Transaction } from '../db/repo';
 import {
   updateTransactionCategory,
   bulkApplyMerchantCategory,
-} from '../api/client';
+} from '../db/repo';
 import { getAllCategories } from '../api/categorizer';
 
 interface UncategorizedInboxProps {

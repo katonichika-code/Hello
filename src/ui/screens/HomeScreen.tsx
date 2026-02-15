@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Transaction, ApiSettings, ApiBudget } from '../../api/client';
-import { getSettings, getBudgets } from '../../api/client';
+import type { Transaction, ApiSettings, ApiBudget } from '../../db/repo';
+import { getSettings, getBudgets } from '../../db/repo';
 import {
   remainingFreeToSpend,
   totalExpenses,
@@ -136,7 +136,7 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
             <button
               className="btn-save"
               onClick={async () => {
-                const { updateSettings } = await import('../../api/client');
+                const { updateSettings } = await import('../../db/repo');
                 await updateSettings({
                   monthly_income: parseInt(formIncome) || settings.monthlyIncome,
                   fixed_cost_total: parseInt(formFixed) || settings.fixedCostTotal,
