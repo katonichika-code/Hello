@@ -21,17 +21,26 @@ export function AppShell() {
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Check if onboarding is needed (first run or missing settings)
+  // Check if onboarding is needed — user cannot derive value without essentials
   useEffect(() => {
     (async () => {
       try {
         await ensureDefaults();
-        const [settings, budgets] = await Promise.all([
+        const month = currentMonth();
+        const [settings, personalBudgets, sharedBudgets] = await Promise.all([
           getSettings(),
-          getBudgets(currentMonth()),
+          getBudgets(month, 'personal'),
+          getBudgets(month, 'shared'),
         ]);
-        const needsOnboarding = settings.monthly_income === 0
-          && budgets.filter((b) => b.pinned === 1).length === 0;
+
+        // Readable intent: each condition independently prevents meaningful usage
+        const settingsIncomplete = settings.monthly_income <= 0;
+        const hasPersonalBudgets = personalBudgets.some((b) => b.pinned === 1);
+        const hasSharedBudgets = sharedBudgets.some((b) => b.pinned === 1);
+        const noBudgetsAtAll = !hasPersonalBudgets && !hasSharedBudgets;
+
+        // Trigger: settings missing OR no budgets in either wallet
+        const needsOnboarding = settingsIncomplete || noBudgetsAtAll;
         setShowOnboarding(needsOnboarding);
       } catch {
         // Don't block app
