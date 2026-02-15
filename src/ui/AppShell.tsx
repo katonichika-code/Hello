@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { getTransactions, type Transaction } from '../db/repo';
+import { ensureDefaults } from '../db/database';
 import { currentMonth } from '../domain/computations';
 import { HomeScreen } from './screens/HomeScreen';
 import { SharedScreen } from './screens/SharedScreen';
@@ -19,6 +20,7 @@ export function AppShell() {
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
+      await ensureDefaults(); // guarantee settings row exists on first load
       const data = await getTransactions(selectedMonth);
       setTransactions(data);
     } catch {

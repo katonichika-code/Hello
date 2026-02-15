@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
-    "dev:lan": "concurrently \"vite --host 0.0.0.0\" \"npm run dev:api\"",
+    "dev": "vite",
+    "dev:lan": "vite --host 0.0.0.0",
+    "dev:full": "concurrently \"vite\" \"npm run dev:api\"",
     "dev:web": "vite",
     "dev:api": "tsx watch server/src/index.ts",
     "build": "tsc -b && vite build",
