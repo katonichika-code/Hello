@@ -1,6 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Transaction } from '../../db/repo';
-import { createTransaction, generateHash, getBudgets, type ApiBudget } from '../../db/repo';
+import {
+  createTransaction, generateHash, getBudgets,
+  bulkCreateTransactions, createBudget, deleteBudget,
+  type ApiBudget, type TransactionInput,
+} from '../../db/repo';
+import { db, type DbTransaction, type DbBudget } from '../../db/database';
 import { categorize, getAllCategories } from '../../api/categorizer';
 import {
   forWallet,
@@ -107,8 +112,165 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
 
   const recent = useMemo(() => shared.filter((t) => t.amount < 0).slice(0, 10), [shared]);
 
+  // --- Shared exchange ---
+  const [showShare, setShowShare] = useState(false);
+  const [shareStatus, setShareStatus] = useState<{ type: 'ok' | 'err'; msg: string } | null>(null);
+  const [shareImporting, setShareImporting] = useState(false);
+  const shareFileRef = useRef<HTMLInputElement>(null);
+
+  const handleExportShared = async () => {
+    try {
+      const [sharedTxns, sharedBudgets] = await Promise.all([
+        db.transactions.where('wallet').equals('shared').toArray(),
+        db.budgets.where('wallet').equals('shared').toArray(),
+      ]);
+
+      const payload = {
+        type: 'shared_exchange' as const,
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        transactions: sharedTxns,
+        budgets: sharedBudgets,
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kakeibo-shared-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setShareStatus({ type: 'ok', msg: `${sharedTxns.length}件の取引をエクスポートしました` });
+    } catch (err) {
+      setShareStatus({ type: 'err', msg: err instanceof Error ? err.message : 'エクスポート失敗' });
+    }
+  };
+
+  const handleImportShared = async (file: File) => {
+    setShareImporting(true);
+    setShareStatus(null);
+
+    try {
+      const text = await file.text();
+      let data: {
+        type: string;
+        version: number;
+        transactions: DbTransaction[];
+        budgets: DbBudget[];
+      };
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error('JSONの形式が不正です');
+      }
+
+      if (data.type !== 'shared_exchange' || !Array.isArray(data.transactions)) {
+        throw new Error('共有エクスポートファイルの形式が不正です');
+      }
+
+      // Import transactions — dedup by hash
+      let imported = 0;
+      let skipped = 0;
+      if (data.transactions.length > 0) {
+        const inputs: TransactionInput[] = data.transactions.map((t) => ({
+          date: t.date,
+          amount: t.amount,
+          category: t.category,
+          account: t.account,
+          wallet: 'shared',
+          source: t.source,
+          description: t.description,
+          hash: t.hash,
+          merchant_key: t.merchant_key,
+          category_source: t.category_source,
+          confidence: t.confidence,
+        }));
+        const result = await bulkCreateTransactions(inputs);
+        imported = result.inserted;
+        skipped = result.skipped;
+      }
+
+      // Import budgets — clear shared budgets, then add
+      let budgetCount = 0;
+      if (Array.isArray(data.budgets) && data.budgets.length > 0) {
+        const existingShared = await db.budgets.where('wallet').equals('shared').toArray();
+        for (const b of existingShared) {
+          await deleteBudget(b.id);
+        }
+        for (const b of data.budgets) {
+          await createBudget({
+            month: b.month,
+            category: b.category,
+            limit_amount: b.limit_amount,
+            pinned: b.pinned,
+            display_order: b.display_order,
+            wallet: 'shared',
+          });
+          budgetCount++;
+        }
+      }
+
+      setShareStatus({
+        type: 'ok',
+        msg: `取引 ${imported}件追加, ${skipped}件スキップ` +
+          (budgetCount > 0 ? `, 予算 ${budgetCount}件` : ''),
+      });
+      loadBudgets();
+      onRefresh();
+    } catch (err) {
+      setShareStatus({ type: 'err', msg: err instanceof Error ? err.message : 'インポート失敗' });
+    } finally {
+      setShareImporting(false);
+      if (shareFileRef.current) shareFileRef.current.value = '';
+    }
+  };
+
   return (
     <div className="screen-content shared-screen">
+      {/* Share button */}
+      <button className="share-btn" onClick={() => { setShowShare(true); setShareStatus(null); }}>
+        共有データ
+      </button>
+
+      {/* Share modal */}
+      {showShare && (
+        <div className="share-modal-overlay" onClick={() => setShowShare(false)}>
+          <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="share-modal-header">
+              <h3>共有データ交換</h3>
+              <button className="share-modal-close" onClick={() => setShowShare(false)}>&times;</button>
+            </div>
+            <p className="share-modal-desc">共有ウォレットの取引と予算をパートナーと交換できます</p>
+            <div className="share-modal-actions">
+              <button className="backup-btn-export" onClick={handleExportShared}>
+                エクスポート
+              </button>
+              <label className="backup-btn-import">
+                インポート
+                <input
+                  ref={shareFileRef}
+                  type="file"
+                  accept=".json"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleImportShared(f);
+                  }}
+                  disabled={shareImporting}
+                />
+              </label>
+            </div>
+            {shareImporting && <p className="share-modal-status">読み込み中...</p>}
+            {shareStatus && (
+              <p className={`share-modal-status ${shareStatus.type === 'err' ? 'error' : 'success'}`}>
+                {shareStatus.msg}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Total shared expenses */}
       <div className="shared-total-card">
         <div className="shared-label">共有ウォレット合計</div>
