@@ -1,10 +1,33 @@
 <!doctype html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kakeibo - Personal Finance</title>
+    <!-- iPhone-first viewport: prevent user-scalable zoom, respect safe areas -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>家計簿</title>
+    <style>
+      /*
+       * JP-first font stack — avoids Simplified Chinese (SC) glyph appearance on iOS Safari.
+       * Order: Hiragino (macOS/iOS) → Yu Gothic (Windows) → Noto Sans JP (Android/fallback)
+       * DO NOT include SC font families (NotoSansSC, PingFang SC, SimHei, etc.)
+       */
+      :root {
+        font-family:
+          'Hiragino Sans',
+          'Hiragino Kaku Gothic ProN',
+          'Yu Gothic',
+          'YuGothic',
+          'Noto Sans JP',
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

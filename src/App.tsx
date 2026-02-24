@@ -1,78 +1,147 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getTransactions, type Transaction } from './api/client';
+import {
+  getTransactions,
+  getBudgets,
+  getSettings,
+  type Transaction,
+  type Budget,
+  type AppSettings,
+} from './api/client';
+import { HomeScreen } from './components/HomeScreen';
+import { SettingsSheet } from './components/SettingsSheet';
 import { CsvImport } from './components/CsvImport';
 import { TransactionList } from './components/TransactionList';
-import { MonthFilter } from './components/MonthFilter';
 import { SankeyDiagram } from './components/SankeyDiagram';
-import { ManualEntry } from './components/ManualEntry';
 import './App.css';
 
-function App() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+type View = 'home' | 'transactions' | 'csvImport' | 'sankey';
 
-  const fetchTransactions = useCallback(async () => {
+function currentMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function App() {
+  const [view, setView] = useState<View>('home');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [settings, setSettings] = useState<AppSettings>({});
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
     try {
-      setError(null);
-      const data = await getTransactions(selectedMonth || undefined);
-      setTransactions(data);
+      const [txns, buds, sets] = await Promise.all([
+        getTransactions(selectedMonth || undefined),
+        getBudgets(),
+        getSettings(),
+      ]);
+      setTransactions(txns);
+      setBudgets(buds);
+      setSettings(sets);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '取引データの読み込みに失敗しました');
+      console.error('Failed to load data:', err);
     } finally {
       setLoading(false);
     }
   }, [selectedMonth]);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    fetchAll();
+  }, [fetchAll]);
 
-  const handleRefresh = () => {
-    fetchTransactions();
-  };
+  // ── Detail pages ────────────────────────────────────────────────────────────
+
+  if (view === 'transactions') {
+    return (
+      <div className="app-page">
+        <header className="page-header">
+          <button className="btn btn-ghost" onClick={() => setView('home')}>
+            ← ホーム
+          </button>
+          <h1 className="page-title">取引一覧</h1>
+        </header>
+        <main className="page-body">
+          <TransactionList transactions={transactions} onUpdate={fetchAll} />
+        </main>
+      </div>
+    );
+  }
+
+  if (view === 'csvImport') {
+    return (
+      <div className="app-page">
+        <header className="page-header">
+          <button className="btn btn-ghost" onClick={() => setView('home')}>
+            ← ホーム
+          </button>
+          <h1 className="page-title">CSV 取り込み</h1>
+        </header>
+        <main className="page-body">
+          <CsvImport
+            onImportComplete={() => {
+              fetchAll();
+              setView('home');
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (view === 'sankey') {
+    return (
+      <div className="app-page">
+        <header className="page-header">
+          <button className="btn btn-ghost" onClick={() => setView('home')}>
+            ← ホーム
+          </button>
+          <h1 className="page-title">収支フロー図</h1>
+        </header>
+        <main className="page-body">
+          <SankeyDiagram transactions={transactions} />
+        </main>
+      </div>
+    );
+  }
+
+  // ── Home ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="app">
-      <header>
-        <h1>家計簿 - Kakeibo</h1>
-      </header>
+    <>
+      <HomeScreen
+        transactions={transactions}
+        budgets={budgets}
+        settings={settings}
+        selectedMonth={selectedMonth}
+        loading={loading}
+        onMonthChange={setSelectedMonth}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onSeeAll={() => setView('transactions')}
+        onRefresh={fetchAll}
+      />
 
-      <main>
-        <div className="controls">
-          <MonthFilter value={selectedMonth} onChange={setSelectedMonth} />
-        </div>
-
-        {error && <p className="status error">{error}</p>}
-
-        <div className="layout">
-          <div className="sidebar">
-            <CsvImport onImportComplete={handleRefresh} />
-            <ManualEntry onEntryComplete={handleRefresh} />
-          </div>
-
-          <div className="content">
-            <SankeyDiagram transactions={transactions} />
-
-            <div className="transactions-section">
-              <h3>
-                取引一覧{' '}
-                {transactions.length > 0 && `(${transactions.length}件)`}
-              </h3>
-              {loading ? (
-                <p>読み込み中...</p>
-              ) : (
-                <TransactionList
-                  transactions={transactions}
-                  onUpdate={handleRefresh}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+      {settingsOpen && (
+        <SettingsSheet
+          budgets={budgets}
+          settings={settings}
+          onClose={() => setSettingsOpen(false)}
+          onRefresh={fetchAll}
+          onOpenCsvImport={() => {
+            setSettingsOpen(false);
+            setView('csvImport');
+          }}
+          onOpenSankey={() => {
+            setSettingsOpen(false);
+            setView('sankey');
+          }}
+          onSettingsChange={setSettings}
+        />
+      )}
+    </>
   );
 }
 
