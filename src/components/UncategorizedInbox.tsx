@@ -13,14 +13,14 @@ interface UncategorizedInboxProps {
 
 export function UncategorizedInbox({ transactions, onUpdate }: UncategorizedInboxProps) {
   const uncategorized = transactions.filter(
-    (t) => t.category === 'Uncategorized' || t.category === '未分類',
+    (t) => t.category === '未分類',
   );
 
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const categories = getAllCategories().filter(
-    (c) => c !== '未分類' && c !== 'Uncategorized',
+    (c) => c !== '未分類',
   );
 
   if (uncategorized.length === 0) {
