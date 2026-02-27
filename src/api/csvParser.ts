@@ -1,5 +1,5 @@
 import Encoding from 'encoding-japanese';
-import type { TransactionInput } from './client';
+import type { TransactionInput } from '../db/repo';
 
 export type CsvFormat = 'A' | 'B';
 

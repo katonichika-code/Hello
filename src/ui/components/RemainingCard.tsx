@@ -5,9 +5,15 @@ interface RemainingCardProps {
   remaining: number;
   totalExpenses: number;
   disposable: number;  // income - fixed - savings
+  pendingExpenses?: number;
 }
 
-export function RemainingCard({ remaining, totalExpenses, disposable }: RemainingCardProps) {
+export function RemainingCard({
+  remaining,
+  totalExpenses,
+  disposable,
+  pendingExpenses = 0,
+}: RemainingCardProps) {
   const pct = disposable > 0 ? Math.max(0, remaining / disposable) * 100 : 0;
   const isOver = remaining < 0;
 
@@ -24,6 +30,9 @@ export function RemainingCard({ remaining, totalExpenses, disposable }: Remainin
       <div className="remaining-detail">
         支出 {formatJPY(totalExpenses)} / 予算 {formatJPY(disposable)}
       </div>
+      {pendingExpenses > 0 && (
+        <div className="remaining-pending-note">うち未確定: {formatJPY(pendingExpenses)}</div>
+      )}
     </div>
   );
 }

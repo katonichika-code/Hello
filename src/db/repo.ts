@@ -20,6 +20,7 @@ export type TransactionInput = {
   merchant_key?: string | null;
   category_source?: string;
   confidence?: number;
+  isPending?: number;
 };
 export type ApiSettings = Omit<DbSettings, 'id'>;
 export type ApiBudget = DbBudget;
@@ -73,6 +74,7 @@ export async function createTransaction(data: TransactionInput): Promise<Transac
     merchant_key: data.merchant_key ?? null,
     category_source: data.category_source || 'unknown',
     confidence: data.confidence ?? 0,
+    isPending: data.isPending ?? 0,
   };
 
   await db.transactions.add(txn);
@@ -110,6 +112,7 @@ export async function bulkCreateTransactions(items: TransactionInput[]): Promise
       merchant_key: item.merchant_key ?? null,
       category_source: item.category_source || 'unknown',
       confidence: item.confidence ?? 0,
+      isPending: item.isPending ?? 0,
     });
     inserted++;
   }

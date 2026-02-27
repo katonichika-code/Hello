@@ -1,6 +1,6 @@
 /**
  * IndexedDB database definition using Dexie.
- * This replaces the Express+SQLite server for all persistence.
+ * All data persists in the browser — no server required.
  */
 import Dexie, { type Table } from 'dexie';
 
@@ -21,6 +21,7 @@ export interface DbTransaction {
   merchant_key: string | null;
   category_source: string; // 'learned' | 'rule' | 'manual' | 'unknown'
   confidence: number;      // 0–1
+  isPending: number;       // 0 = confirmed, 1 = pending (gmail notifications)
 }
 
 export interface DbSettings {
@@ -47,6 +48,13 @@ export interface DbMerchantMapping {
   hits: number;
 }
 
+export interface DbGmailSync {
+  id: number; // always 1
+  email: string;
+  last_sync_at: string;
+  last_history_id: string;
+}
+
 // --- Database class ---
 
 class KakeiboDB extends Dexie {
@@ -54,6 +62,7 @@ class KakeiboDB extends Dexie {
   settings!: Table<DbSettings, number>;
   budgets!: Table<DbBudget, string>;
   merchant_map!: Table<DbMerchantMapping, string>;
+  gmail_sync!: Table<DbGmailSync, number>;
 
   constructor() {
     super('kakeibo-db');
@@ -92,6 +101,21 @@ class KakeiboDB extends Dexie {
       return tx.table('budgets').toCollection().modify((b: DbBudget) => {
         if (!b.wallet) {
           b.wallet = 'personal';
+        }
+      });
+    });
+
+    // v4 — add isPending to transactions + gmail_sync table
+    this.version(4).stores({
+      transactions: 'id, date, monthKey, [monthKey+wallet], &hash, category, wallet, merchant_key, category_source, isPending',
+      settings: 'id',
+      budgets: 'id, [month+wallet+category], [month+wallet], month, wallet, pinned, display_order',
+      merchant_map: 'merchant_key',
+      gmail_sync: 'id',
+    }).upgrade((tx) => {
+      return tx.table('transactions').toCollection().modify((txn: DbTransaction) => {
+        if (txn.isPending === undefined) {
+          txn.isPending = 0;
         }
       });
     });
