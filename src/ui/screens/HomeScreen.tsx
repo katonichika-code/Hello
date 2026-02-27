@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Transaction, ApiSettings, ApiBudget } from '../../db/repo';
 import { getSettings, getBudgets, copyBudgetsFromPrevMonth } from '../../db/repo';
+import { db } from '../../db/database';
 import {
   remainingFreeToSpend,
   totalExpenses,
@@ -11,6 +12,13 @@ import { RemainingCard } from '../components/RemainingCard';
 import { BudgetCard } from '../components/BudgetCard';
 import { ProjectionCard } from '../components/ProjectionCard';
 import { QuickEntry } from '../components/QuickEntry';
+import {
+  isConnected,
+  requestAccessToken,
+  revokeAccessToken,
+  syncGmail,
+  type SyncResult,
+} from '../../api/gmailSync';
 
 export interface HomeScreenProps {
   transactions: Transaction[];
@@ -18,7 +26,6 @@ export interface HomeScreenProps {
   onRefresh: () => void;
 }
 
-/** Convert API settings to domain Settings */
 function toDomainSettings(api: ApiSettings): Settings {
   return {
     monthlyIncome: api.monthly_income,
@@ -27,7 +34,6 @@ function toDomainSettings(api: ApiSettings): Settings {
   };
 }
 
-/** Convert API budget to domain Budget */
 function toDomainBudget(api: ApiBudget): Budget {
   return {
     id: api.id,
@@ -47,29 +53,45 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Local form state for settings
   const [formIncome, setFormIncome] = useState('');
   const [formFixed, setFormFixed] = useState('');
   const [formSavings, setFormSavings] = useState('');
+
+  const [gmailConnected, setGmailConnected] = useState(isConnected());
+  const [gmailSyncing, setGmailSyncing] = useState(false);
+  const [gmailError, setGmailError] = useState<string | null>(null);
+  const [gmailStatus, setGmailStatus] = useState<SyncResult | null>(null);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+
+  const loadGmailSyncMeta = useCallback(async () => {
+    const sync = await db.gmail_sync.get(1);
+    setLastSyncAt(sync?.last_sync_at ?? null);
+  }, []);
 
   const loadSettings = useCallback(async () => {
     try {
       const s = await getSettings();
       setSettings(toDomainSettings(s));
-    } catch { /* use defaults */ }
+    } catch {
+      // use defaults
+    }
   }, []);
 
   const loadBudgets = useCallback(async () => {
     try {
       const b = await getBudgets(selectedMonth, 'personal');
       setBudgets(b.filter((x) => x.pinned === 1).map(toDomainBudget));
-    } catch { /* use empty */ }
+    } catch {
+      // use empty
+    }
   }, [selectedMonth]);
 
   useEffect(() => { loadSettings(); }, [loadSettings]);
   useEffect(() => { loadBudgets(); }, [loadBudgets]);
+  useEffect(() => {
+    loadGmailSyncMeta();
+  }, [loadGmailSyncMeta]);
 
-  // Memoized domain computations — avoid recalc on unrelated re-renders
   const domainTxns = useMemo(() => transactions.map((t) => ({
     ...t,
     wallet: t.wallet || 'personal',
@@ -82,6 +104,12 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
   );
   const remaining = useMemo(() => remainingFreeToSpend(settings, domainTxns), [settings, domainTxns]);
   const expenses = useMemo(() => totalExpenses(domainTxns), [domainTxns]);
+  const pendingExpenses = useMemo(
+    () => domainTxns
+      .filter((t) => t.isPending === 1 && t.amount < 0)
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0),
+    [domainTxns],
+  );
   const budgetStatuses = useMemo(() => budgets.map((b) => categoryRemaining(b, domainTxns)), [budgets, domainTxns]);
 
   const recent = useMemo(() => transactions.slice(0, 5), [transactions]);
@@ -93,7 +121,6 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
 
   const needsSetup = settings.monthlyIncome === 0;
 
-  // Copy previous month budgets
   const [copyResult, setCopyResult] = useState<string | null>(null);
   const handleCopyBudgets = async () => {
     try {
@@ -109,9 +136,66 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
     }
   };
 
+  const handleGmailSync = async () => {
+    try {
+      setGmailSyncing(true);
+      setGmailError(null);
+
+      if (!isConnected()) {
+        await requestAccessToken();
+      }
+      setGmailConnected(isConnected());
+
+      const result = await syncGmail();
+      setGmailStatus(result);
+      await loadGmailSyncMeta();
+      await onRefresh();
+    } catch (err) {
+      setGmailError(err instanceof Error ? err.message : 'Gmail同期に失敗しました');
+      setGmailConnected(isConnected());
+    } finally {
+      setGmailSyncing(false);
+    }
+  };
+
   return (
     <div className="screen-content home-screen">
-      {/* Remaining Free-to-Spend */}
+      <div className="gmail-sync-card">
+        <div className="gmail-sync-header">
+          <div>
+            <div className="gmail-sync-title">Gmail同期</div>
+            <div className="gmail-sync-meta">
+              接続: {gmailConnected ? '接続済み' : '未接続'}
+              {lastSyncAt ? ` / 前回: ${new Date(lastSyncAt).toLocaleString('ja-JP')}` : ' / 前回: 未同期'}
+            </div>
+            {gmailStatus && (
+              <div className="gmail-sync-meta">
+                新規 {gmailStatus.newTransactions}件 / 重複スキップ {gmailStatus.duplicatesSkipped}件
+              </div>
+            )}
+          </div>
+          <button className="gmail-sync-btn" onClick={handleGmailSync} disabled={gmailSyncing}>
+            {gmailSyncing ? '同期中...' : 'Gmail同期'}
+          </button>
+        </div>
+        {gmailError && <p className="status error">{gmailError}</p>}
+        {gmailStatus && gmailStatus.errors.length > 0 && (
+          <p className="status error">{gmailStatus.errors[0]}</p>
+        )}
+        {gmailConnected && (
+          <button
+            className="gmail-revoke-btn"
+            onClick={() => {
+              revokeAccessToken();
+              setGmailConnected(false);
+            }}
+            type="button"
+          >
+            接続解除
+          </button>
+        )}
+      </div>
+
       {needsSetup ? (
         <div className="setup-prompt" onClick={() => setShowSettings(true)}>
           <div className="setup-title">はじめに設定</div>
@@ -122,17 +206,18 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
           remaining={remaining}
           totalExpenses={expenses}
           disposable={disposable}
+          pendingExpenses={pendingExpenses}
         />
       )}
 
-      {/* Settings modal */}
       {showSettings && (
         <div className="settings-panel">
           <h3>月次設定</h3>
           <label>
             月収 (円)
             <input
-              type="number" inputMode="numeric"
+              type="number"
+              inputMode="numeric"
               value={formIncome || settings.monthlyIncome || ''}
               onChange={(e) => setFormIncome(e.target.value)}
             />
@@ -140,7 +225,8 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
           <label>
             固定費 合計 (円)
             <input
-              type="number" inputMode="numeric"
+              type="number"
+              inputMode="numeric"
               value={formFixed || settings.fixedCostTotal || ''}
               onChange={(e) => setFormFixed(e.target.value)}
             />
@@ -148,7 +234,8 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
           <label>
             貯蓄目標 (円)
             <input
-              type="number" inputMode="numeric"
+              type="number"
+              inputMode="numeric"
               value={formSavings || settings.monthlySavingsTarget || ''}
               onChange={(e) => setFormSavings(e.target.value)}
             />
@@ -159,9 +246,9 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
               onClick={async () => {
                 const { updateSettings } = await import('../../db/repo');
                 await updateSettings({
-                  monthly_income: parseInt(formIncome) || settings.monthlyIncome,
-                  fixed_cost_total: parseInt(formFixed) || settings.fixedCostTotal,
-                  monthly_savings_target: parseInt(formSavings) || settings.monthlySavingsTarget,
+                  monthly_income: parseInt(formIncome, 10) || settings.monthlyIncome,
+                  fixed_cost_total: parseInt(formFixed, 10) || settings.fixedCostTotal,
+                  monthly_savings_target: parseInt(formSavings, 10) || settings.monthlySavingsTarget,
                 });
                 await loadSettings();
                 setShowSettings(false);
@@ -176,19 +263,20 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
         </div>
       )}
 
-      {/* Settings gear (always available) */}
       {!showSettings && !needsSetup && (
-        <button className="settings-gear" onClick={() => {
-          setFormIncome(String(settings.monthlyIncome));
-          setFormFixed(String(settings.fixedCostTotal));
-          setFormSavings(String(settings.monthlySavingsTarget));
-          setShowSettings(true);
-        }}>
+        <button
+          className="settings-gear"
+          onClick={() => {
+            setFormIncome(String(settings.monthlyIncome));
+            setFormFixed(String(settings.fixedCostTotal));
+            setFormSavings(String(settings.monthlySavingsTarget));
+            setShowSettings(true);
+          }}
+        >
           ⚙ 設定
         </button>
       )}
 
-      {/* Tracked category budget cards */}
       {budgetStatuses.length > 0 && (
         <div className="budget-cards">
           {budgetStatuses.map((s) => (
@@ -197,7 +285,6 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
         </div>
       )}
 
-      {/* Copy previous month budgets */}
       {budgetStatuses.length === 0 && !needsSetup && (
         <button className="copy-budgets-btn" onClick={handleCopyBudgets}>
           先月の予算をコピー
@@ -207,13 +294,10 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
         <div className="copy-result" onClick={() => setCopyResult(null)}>{copyResult}</div>
       )}
 
-      {/* Future projection — combined personal + shared */}
       {!needsSetup && <ProjectionCard transactions={domainTxns} />}
 
-      {/* Quick entry */}
       <QuickEntry onSaved={onRefresh} />
 
-      {/* Recent transactions */}
       {recent.length > 0 && (
         <div className="recent-txns">
           <h4>最近の取引</h4>

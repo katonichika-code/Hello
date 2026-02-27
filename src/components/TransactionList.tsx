@@ -99,7 +99,10 @@ export function TransactionList({ transactions, onUpdate }: TransactionListProps
                   </span>
                 )}
               </td>
-              <td>{t.description}</td>
+              <td>
+                <span>{t.description}</span>
+                {t.isPending === 1 && <span className="pending-badge">未確定</span>}
+              </td>
               <td>{t.account === 'card' ? 'カード' : '現金'}</td>
             </tr>
           ))}
