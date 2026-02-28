@@ -5,6 +5,7 @@ import { currentMonth } from '../domain/computations';
 import { HomeScreen } from './screens/HomeScreen';
 import { SharedScreen } from './screens/SharedScreen';
 import { AnalyticsScreen } from './screens/AnalyticsScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
 import { OnboardingStepper } from './components/OnboardingStepper';
 import { PageDots } from './components/PageDots';
 
@@ -17,8 +18,10 @@ export function AppShell() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [storagePersisted, setStoragePersisted] = useState<boolean | null>(null);
+  const [persistHintDismissed, setPersistHintDismissed] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [showSettingsScreen, setShowSettingsScreen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Check if onboarding is needed — user cannot derive value without essentials
@@ -62,8 +65,12 @@ export function AppShell() {
         const persisted = await navigator.storage.persisted();
         setStoragePersisted(persisted);
       }
+      setPersistHintDismissed(localStorage.getItem('pwa_banner_dismissed') === 'true');
     })();
   }, []);
+
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  const shouldShowPersistHint = storagePersisted === false && !persistHintDismissed && !isStandalone;
 
   const fetchTransactions = useCallback(async () => {
     try {
@@ -149,9 +156,20 @@ export function AppShell() {
       </header>
 
       {/* Storage hint — only if persist denied and not installed as PWA */}
-      {storagePersisted === false && !window.matchMedia('(display-mode: standalone)').matches && (
-        <div className="persist-hint" onClick={() => setStoragePersisted(null)}>
+      {shouldShowPersistHint && (
+        <div className="persist-hint">
           ホーム画面に追加するとデータが安全に保持されます
+          <button
+            type="button"
+            className="persist-hint-dismiss"
+            aria-label="閉じる"
+            onClick={() => {
+              localStorage.setItem('pwa_banner_dismissed', 'true');
+              setPersistHintDismissed(true);
+            }}
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -165,6 +183,7 @@ export function AppShell() {
             transactions={transactions}
             selectedMonth={selectedMonth}
             onRefresh={fetchTransactions}
+            onOpenSettings={() => setShowSettingsScreen(true)}
           />
         </div>
         <div className="screen">
@@ -188,6 +207,17 @@ export function AppShell() {
       {/* Onboarding stepper */}
       {onboardingChecked && showOnboarding && (
         <OnboardingStepper onComplete={handleOnboardingComplete} />
+      )}
+
+      {showSettingsScreen && (
+        <SettingsScreen
+          onClose={() => setShowSettingsScreen(false)}
+          onRefresh={fetchTransactions}
+          onGoAnalytics={() => {
+            setShowSettingsScreen(false);
+            scrollToScreen(2);
+          }}
+        />
       )}
     </div>
   );

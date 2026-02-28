@@ -3,10 +3,11 @@ import { createTransaction, generateHash } from '../../db/repo';
 import { categorize, getAllCategories } from '../../api/categorizer';
 
 interface QuickEntryProps {
-  onSaved: () => void;
+  onSaved: () => void | Promise<void>;
+  onSuccess?: () => void;
 }
 
-export function QuickEntry({ onSaved }: QuickEntryProps) {
+export function QuickEntry({ onSaved, onSuccess }: QuickEntryProps) {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
@@ -41,7 +42,8 @@ export function QuickEntry({ onSaved }: QuickEntryProps) {
       setCategory('');
       setDescription('');
       setShowDetail(false);
-      onSaved();
+      await onSaved();
+      onSuccess?.();
     } catch {
       // silent — user sees amount didn't clear
     } finally {

@@ -97,7 +97,19 @@
   color: var(--warning-text);
   font-size: 0.75rem;
   text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.persist-hint-dismiss {
+  border: none;
+  background: transparent;
+  color: var(--warning-text);
   cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 /* Loading bar */
@@ -318,7 +330,25 @@
   flex-direction: column;
   gap: var(--k-sp-3);
   background: var(--k-bg);
-  padding-bottom: 7rem; /* room for sticky quick-entry */
+  padding-bottom: calc(6rem + var(--k-safe-bottom));
+}
+
+.home-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.home-month-title {
+  margin: 0;
+  font-size: var(--k-text-lg);
+}
+
+.settings-icon-btn {
+  border: none;
+  background: transparent;
+  font-size: 1.2rem;
+  cursor: pointer;
 }
 
 
@@ -424,7 +454,30 @@
 
 /* Remaining Card — hero */
 .hero-card-wrap {
-  margin: var(--k-sp-6) 0 var(--k-sp-4);
+  margin: var(--k-sp-2) 0 var(--k-sp-2);
+}
+
+.sync-oneliner {
+  display: flex;
+  gap: var(--k-sp-2);
+  align-items: center;
+  color: var(--k-text-secondary);
+  font-size: var(--k-text-xs);
+}
+
+.sync-inline-btn {
+  border: none;
+  background: transparent;
+  color: var(--k-info);
+  font-size: var(--k-text-xs);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.sync-inline-note {
+  color: var(--k-text-tertiary);
+  font-size: var(--k-text-xs);
 }
 
 .hero-card {
@@ -596,8 +649,7 @@
   box-shadow: var(--shadow-lg);
 }
 
-/* When inside home-screen or shared-screen, pin to bottom */
-.home-screen .quick-entry,
+/* When inside shared-screen, pin to bottom */
 .shared-screen .quick-entry {
   position: fixed;
   bottom: 44px; /* above page dots */
@@ -698,6 +750,118 @@
   transition: border-color 0.15s;
 }
 .quick-desc-input:focus { border-color: var(--accent); outline: none; }
+
+.fab {
+  position: fixed;
+  bottom: calc(24px + var(--k-safe-bottom));
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--k-positive);
+  color: white;
+  border: none;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--k-shadow-lg);
+  cursor: pointer;
+  z-index: 100;
+  transition: transform var(--k-duration-sm) var(--k-ease-out);
+}
+
+.fab:active {
+  transform: scale(0.92);
+}
+
+.bottom-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 200;
+}
+
+.bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--k-surface);
+  border-radius: var(--k-radius-xl) var(--k-radius-xl) 0 0;
+  padding: var(--k-sp-4) var(--k-sp-4) calc(var(--k-sp-6) + var(--k-safe-bottom));
+  z-index: 201;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.bottom-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--k-border);
+  border-radius: var(--k-radius-full);
+  margin: 0 auto var(--k-sp-4);
+}
+
+.quick-toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(96px + var(--k-safe-bottom));
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  border-radius: var(--k-radius-full);
+  font-size: var(--k-text-sm);
+  padding: 0.4rem 0.8rem;
+  z-index: 300;
+}
+
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-screen {
+  width: min(520px, 100%);
+  height: 100%;
+  background: var(--k-bg);
+  overflow-y: auto;
+  padding: var(--k-sp-4);
+}
+
+.settings-screen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--k-sp-3);
+}
+
+.settings-close-btn {
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.settings-section-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: var(--shadow);
+}
+
+.settings-inline-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
 
 /* Settings gear + panel */
 .settings-gear {
