@@ -216,6 +216,28 @@ function emitProgress(options: SyncOptions | undefined, progress: SyncProgress):
 export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
   const result: SyncResult = { newTransactions: 0, duplicatesSkipped: 0, errors: [] };
 
+
+  emitProgress(options, { message: '認証完了、メール検索中…' });
+
+  let afterMs: number | undefined;
+  let isInitialSync = false;
+  try {
+    const syncRecord = await db.gmail_sync.get(1);
+    if (syncRecord?.last_sync_at) {
+      afterMs = new Date(syncRecord.last_sync_at).getTime();
+    } else {
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      afterMs = ninetyDaysAgo.getTime();
+      isInitialSync = true;
+    }
+  } catch (err) {
+    result.errors.push(`DB read error: ${err instanceof Error ? err.message : String(err)}`);
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    afterMs = ninetyDaysAgo.getTime();
+    isInitialSync = true;
+
   emitProgress(options, { message: '認証完了、メール取得中…' });
 
   let afterMs: number | undefined;
@@ -226,6 +248,7 @@ export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
       : undefined;
   } catch (err) {
     result.errors.push(`DB read error: ${err instanceof Error ? err.message : String(err)}`);
+
   }
 
   let messages: GmailMessage[];
@@ -236,7 +259,13 @@ export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
   }
 
   emitProgress(options, {
+
+    message: isInitialSync
+      ? `${messages.length}件のメールが見つかりました（直近90日）`
+      : `${messages.length}件のメールを取得、解析中…`,
+
     message: `${messages.length}件のメールを取得、解析中…`,
+
     fetchedMessages: messages.length,
   });
 
@@ -245,7 +274,9 @@ export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
     return result;
   }
 
-  let merchantMap;
+
+  let merchantMap: Map<string, string>;
+
   try {
     merchantMap = buildMerchantMap(await getMerchantMap());
   } catch (err) {
@@ -253,46 +284,73 @@ export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
   }
 
   const transactionInputs: TransactionInput[] = [];
+  const BATCH_SIZE = 5;
 
-  for (const msg of messages) {
-    try {
-      const full = await getMessageFull(msg.id);
-      const body = extractPlainTextBody(full);
-      if (!body) {
-        result.errors.push(`Message ${msg.id}: Could not extract text body`);
+  for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+    const batch = messages.slice(i, i + BATCH_SIZE);
+    const processed = Math.min(i + batch.length, messages.length);
+
+    emitProgress(options, {
+      message: `${processed} / ${messages.length} 件処理中…`,
+      fetchedMessages: messages.length,
+      stagedTransactions: transactionInputs.length,
+    });
+
+    const settled = await Promise.allSettled(
+      batch.map(async (msg) => {
+        const full = await getMessageFull(msg.id);
+        const body = extractPlainTextBody(full);
+        if (!body) {
+          return { status: 'skip' as const, reason: `Message ${msg.id}: Could not extract text body` };
+        }
+
+        const parsed = parseVpassEmail(body);
+        if (!parsed) {
+          return { status: 'skip' as const, reason: `Message ${msg.id}: Could not parse Vpass format` };
+        }
+
+        return { status: 'ok' as const, parsed, msgId: msg.id };
+      }),
+    );
+
+    for (const item of settled) {
+      if (item.status === 'rejected') {
+        result.errors.push(`Fetch error: ${item.reason instanceof Error ? item.reason.message : String(item.reason)}`);
         continue;
       }
 
-      const parsed = parseVpassEmail(body);
-      if (!parsed) {
-        result.errors.push(`Message ${msg.id}: Could not parse Vpass format`);
+      if (item.value.status === 'skip') {
+        result.errors.push(item.value.reason);
         continue;
       }
 
-      const hash = await generateHash(parsed.date, parsed.amount, parsed.merchant);
-      const existing = await db.transactions.where('hash').equals(hash).first();
-      if (existing) {
-        result.duplicatesSkipped += 1;
-        continue;
-      }
+      const { parsed, msgId } = item.value;
+      try {
+        const hash = await generateHash(parsed.date, parsed.amount, parsed.merchant);
+        const existing = await db.transactions.where('hash').equals(hash).first();
+        if (existing) {
+          result.duplicatesSkipped += 1;
+          continue;
+        }
 
-      const categorization = categorizeWithLearning(parsed.merchant, merchantMap);
-      transactionInputs.push({
-        date: parsed.date,
-        amount: parsed.amount,
-        category: categorization.category,
-        account: 'card',
-        wallet: 'personal',
-        source: 'gmail',
-        description: parsed.merchant,
-        hash,
-        isPending: 1,
-        merchant_key: categorization.merchantKey,
-        category_source: categorization.categorySource,
-        confidence: categorization.confidence,
-      });
-    } catch (err) {
-      result.errors.push(`Message ${msg.id}: ${err instanceof Error ? err.message : String(err)}`);
+        const categorization = categorizeWithLearning(parsed.merchant, merchantMap);
+        transactionInputs.push({
+          date: parsed.date,
+          amount: parsed.amount,
+          category: categorization.category,
+          account: 'card',
+          wallet: 'personal',
+          source: 'gmail',
+          description: parsed.merchant,
+          hash,
+          isPending: 1,
+          merchant_key: categorization.merchantKey,
+          category_source: categorization.categorySource,
+          confidence: categorization.confidence,
+        });
+      } catch (err) {
+        result.errors.push(`Message ${msgId}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
 
@@ -311,6 +369,21 @@ export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
     }
   }
 
+
+  emitProgress(options, {
+    message: `${transactionInputs.length}件の取引を登録中…`,
+    stagedTransactions: transactionInputs.length,
+  });
+
+  if (transactionInputs.length > 0) {
+    try {
+      const insertResult = await bulkCreateTransactions(transactionInputs);
+      result.newTransactions = insertResult.inserted;
+      result.duplicatesSkipped += insertResult.skipped;
+    } catch (err) {
+      throw new Error(`DB write error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
   try {
     await db.gmail_sync.put({
       id: 1,

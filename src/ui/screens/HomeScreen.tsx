@@ -190,7 +190,9 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
         syncGmail({
           onProgress: (progress) => setGmailProgress(progress.message),
         }),
-        30_000,
+
+        120_000,
+
       );
 
       setGmailStatus(result);
