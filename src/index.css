@@ -1,37 +1,4 @@
-/* ===== Design Tokens ===== */
-:root {
-  /* Colors */
-  --bg: #f8f9fa;
-  --surface: #ffffff;
-  --text: #1a1a1a;
-  --muted: #6b7280;
-  --subtle: #9ca3af;
-  --border: #f0f0f0;
-  --accent: #2563eb;
-  --accent-light: #eff6ff;
-  --danger: #dc2626;
-  --success: #059669;
-  --warning-bg: #fffbeb;
-  --warning-border: #fbbf24;
-  --warning-text: #92400e;
-
-  /* Surfaces */
-  --radius: 14px;
-  --radius-sm: 8px;
-  --shadow: 0 1px 3px rgba(0,0,0,0.04);
-  --shadow-lg: 0 4px 12px rgba(0,0,0,0.06);
-
-  /* Typography */
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: var(--text);
-  background-color: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+@import './tokens.css';
 
 /* ===== Reset ===== */
 * { box-sizing: border-box; }
