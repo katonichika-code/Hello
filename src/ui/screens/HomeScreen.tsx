@@ -26,6 +26,40 @@ export interface HomeScreenProps {
   onRefresh: () => void;
 }
 
+interface SyncUiError {
+  message: string;
+  type: 'auth' | 'network' | 'timeout' | 'parse' | 'db' | 'unknown';
+  timestamp: string;
+}
+
+function classifySyncError(message: string): SyncUiError['type'] {
+  const text = message.toLowerCase();
+  if (text.includes('oauth') || text.includes('auth') || text.includes('token') || text.includes('google identity')) return 'auth';
+  if (text.includes('timeout')) return 'timeout';
+  if (text.includes('gmail api') || text.includes('network') || text.includes('fetch')) return 'network';
+  if (text.includes('parse') || text.includes('extract text body') || text.includes('vpass format')) return 'parse';
+  if (text.includes('db ') || text.includes('dexie') || text.includes('indexeddb')) return 'db';
+  return 'unknown';
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(`Sync timeout after ${Math.floor(timeoutMs / 1000)} seconds`));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
 function toDomainSettings(api: ApiSettings): Settings {
   return {
     monthlyIncome: api.monthly_income,
@@ -59,7 +93,9 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
 
   const [gmailConnected, setGmailConnected] = useState(isConnected());
   const [gmailSyncing, setGmailSyncing] = useState(false);
-  const [gmailError, setGmailError] = useState<string | null>(null);
+  const [gmailError, setGmailError] = useState<SyncUiError | null>(null);
+  const [gmailWarnings, setGmailWarnings] = useState<string[]>([]);
+  const [gmailProgress, setGmailProgress] = useState('');
   const [gmailStatus, setGmailStatus] = useState<SyncResult | null>(null);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
 
@@ -140,19 +176,39 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
     try {
       setGmailSyncing(true);
       setGmailError(null);
+      setGmailWarnings([]);
+      setGmailStatus(null);
+      setGmailProgress('認証中…');
 
       if (!isConnected()) {
         await requestAccessToken();
       }
       setGmailConnected(isConnected());
+      setGmailProgress('認証完了、メール取得中…');
 
-      const result = await syncGmail();
+      const result = await withTimeout(
+        syncGmail({
+          onProgress: (progress) => setGmailProgress(progress.message),
+        }),
+        30_000,
+      );
+
       setGmailStatus(result);
+      setGmailWarnings(result.errors);
+      setGmailProgress(`同期完了：新規${result.newTransactions}件、重複${result.duplicatesSkipped}件`);
       await loadGmailSyncMeta();
       await onRefresh();
     } catch (err) {
-      setGmailError(err instanceof Error ? err.message : 'Gmail同期に失敗しました');
+      const message = err instanceof Error ? err.message : 'Gmail同期に失敗しました';
+      const syncError: SyncUiError = {
+        message,
+        type: classifySyncError(message),
+        timestamp: new Date().toISOString(),
+      };
+      setGmailError(syncError);
+      setGmailProgress(`同期失敗：${message}`);
       setGmailConnected(isConnected());
+      console.error('[Gmail Sync Error]', err);
     } finally {
       setGmailSyncing(false);
     }
@@ -168,6 +224,7 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
               接続: {gmailConnected ? '接続済み' : '未接続'}
               {lastSyncAt ? ` / 前回: ${new Date(lastSyncAt).toLocaleString('ja-JP')}` : ' / 前回: 未同期'}
             </div>
+            {gmailProgress && <div className="gmail-sync-progress">{gmailProgress}</div>}
             {gmailStatus && (
               <div className="gmail-sync-meta">
                 新規 {gmailStatus.newTransactions}件 / 重複スキップ {gmailStatus.duplicatesSkipped}件
@@ -178,10 +235,26 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
             {gmailSyncing ? '同期中...' : 'Gmail同期'}
           </button>
         </div>
-        {gmailError && <p className="status error">{gmailError}</p>}
-        {gmailStatus && gmailStatus.errors.length > 0 && (
-          <p className="status error">{gmailStatus.errors[0]}</p>
+
+        {gmailError && (
+          <div className="gmail-sync-error-banner" role="alert">
+            <div className="gmail-sync-error-title">同期失敗：{gmailError.message}</div>
+            <div className="gmail-sync-error-meta">種別: {gmailError.type}</div>
+            <div className="gmail-sync-error-meta">時刻: {new Date(gmailError.timestamp).toLocaleString('ja-JP')}</div>
+          </div>
         )}
+
+        {gmailWarnings.length > 0 && (
+          <div className="gmail-sync-warning-banner">
+            <div className="gmail-sync-warning-title">同期中の警告</div>
+            <ul>
+              {gmailWarnings.map((warning, idx) => (
+                <li key={`${warning}-${idx}`}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {gmailConnected && (
           <button
             className="gmail-revoke-btn"

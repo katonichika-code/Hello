@@ -357,6 +357,43 @@
   background: #9ca3af;
   cursor: not-allowed;
 }
+
+.gmail-sync-progress {
+  margin-top: 0.3rem;
+  font-size: 0.74rem;
+  color: var(--text);
+}
+.gmail-sync-error-banner {
+  margin-top: 0.55rem;
+  border: 1px solid #ef4444;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.65rem;
+  font-size: 0.74rem;
+}
+.gmail-sync-error-title {
+  font-weight: 600;
+}
+.gmail-sync-error-meta {
+  margin-top: 0.2rem;
+}
+.gmail-sync-warning-banner {
+  margin-top: 0.55rem;
+  border: 1px solid #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.65rem;
+  font-size: 0.72rem;
+}
+.gmail-sync-warning-title {
+  font-weight: 600;
+}
+.gmail-sync-warning-banner ul {
+  margin: 0.3rem 0 0;
+  padding-left: 1rem;
+}
 .gmail-revoke-btn {
   margin-top: 0.5rem;
   border: none;

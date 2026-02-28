@@ -39,6 +39,16 @@ export interface SyncResult {
   errors: string[];
 }
 
+export interface SyncProgress {
+  message: string;
+  fetchedMessages?: number;
+  stagedTransactions?: number;
+}
+
+interface SyncOptions {
+  onProgress?: (progress: SyncProgress) => void;
+}
+
 let accessToken: string | null = null;
 
 export function requestAccessToken(): Promise<string> {
@@ -133,7 +143,10 @@ async function getMessageFull(messageId: string): Promise<GmailMessageFull> {
 }
 
 function decodeBase64Url(data: string): string {
-  const base64 = data.replace(/-/g, '+').replace(/_/g, '/');
+  const normalized = data.replace(/-/g, '+').replace(/_/g, '/');
+  const padding = (4 - (normalized.length % 4)) % 4;
+  const base64 = normalized.padEnd(normalized.length + padding, '=');
+
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) {
@@ -196,20 +209,49 @@ function parseVpassEmail(body: string): ParsedTransaction | null {
   };
 }
 
-export async function syncGmail(): Promise<SyncResult> {
+function emitProgress(options: SyncOptions | undefined, progress: SyncProgress): void {
+  options?.onProgress?.(progress);
+}
+
+export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
   const result: SyncResult = { newTransactions: 0, duplicatesSkipped: 0, errors: [] };
 
-  const syncRecord = await db.gmail_sync.get(1);
-  const afterMs = syncRecord?.last_sync_at
-    ? new Date(syncRecord.last_sync_at).getTime()
-    : undefined;
+  emitProgress(options, { message: '認証完了、メール取得中…' });
 
-  const messages = await listVpassMessages(afterMs);
+  let afterMs: number | undefined;
+  try {
+    const syncRecord = await db.gmail_sync.get(1);
+    afterMs = syncRecord?.last_sync_at
+      ? new Date(syncRecord.last_sync_at).getTime()
+      : undefined;
+  } catch (err) {
+    result.errors.push(`DB read error: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  let messages: GmailMessage[];
+  try {
+    messages = await listVpassMessages(afterMs);
+  } catch (err) {
+    throw new Error(`Gmail API list error: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  emitProgress(options, {
+    message: `${messages.length}件のメールを取得、解析中…`,
+    fetchedMessages: messages.length,
+  });
+
   if (messages.length === 0) {
+    emitProgress(options, { message: '同期完了：新規0件、重複0件' });
     return result;
   }
 
-  const merchantMap = buildMerchantMap(await getMerchantMap());
+  let merchantMap;
+  try {
+    merchantMap = buildMerchantMap(await getMerchantMap());
+  } catch (err) {
+    throw new Error(`Merchant map load error: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   const transactionInputs: TransactionInput[] = [];
 
   for (const msg of messages) {
@@ -254,17 +296,36 @@ export async function syncGmail(): Promise<SyncResult> {
     }
   }
 
+  emitProgress(options, {
+    message: `${transactionInputs.length}件の取引を登録中…`,
+    stagedTransactions: transactionInputs.length,
+  });
+
   if (transactionInputs.length > 0) {
-    const insertResult = await bulkCreateTransactions(transactionInputs);
-    result.newTransactions = insertResult.inserted;
-    result.duplicatesSkipped += insertResult.skipped;
+    try {
+      const insertResult = await bulkCreateTransactions(transactionInputs);
+      result.newTransactions = insertResult.inserted;
+      result.duplicatesSkipped += insertResult.skipped;
+    } catch (err) {
+      throw new Error(`DB write error: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
-  await db.gmail_sync.put({
-    id: 1,
-    email: 'katonichika@gmail.com',
-    last_sync_at: new Date().toISOString(),
-    last_history_id: messages[0]?.id ?? '',
+  try {
+    await db.gmail_sync.put({
+      id: 1,
+      email: 'katonichika@gmail.com',
+      last_sync_at: new Date().toISOString(),
+      last_history_id: messages[0]?.id ?? '',
+    });
+  } catch (err) {
+    result.errors.push(`DB write error (sync metadata): ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  emitProgress(options, {
+    message: `同期完了：新規${result.newTransactions}件、重複${result.duplicatesSkipped}件`,
+    fetchedMessages: messages.length,
+    stagedTransactions: transactionInputs.length,
   });
 
   return result;
