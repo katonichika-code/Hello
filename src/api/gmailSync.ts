@@ -216,7 +216,6 @@ function emitProgress(options: SyncOptions | undefined, progress: SyncProgress):
 export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
   const result: SyncResult = { newTransactions: 0, duplicatesSkipped: 0, errors: [] };
 
-
   emitProgress(options, { message: '認証完了、メール検索中…' });
 
   let afterMs: number | undefined;
@@ -237,18 +236,6 @@ export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     afterMs = ninetyDaysAgo.getTime();
     isInitialSync = true;
-
-  emitProgress(options, { message: '認証完了、メール取得中…' });
-
-  let afterMs: number | undefined;
-  try {
-    const syncRecord = await db.gmail_sync.get(1);
-    afterMs = syncRecord?.last_sync_at
-      ? new Date(syncRecord.last_sync_at).getTime()
-      : undefined;
-  } catch (err) {
-    result.errors.push(`DB read error: ${err instanceof Error ? err.message : String(err)}`);
-
   }
 
   let messages: GmailMessage[];
@@ -259,13 +246,9 @@ export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
   }
 
   emitProgress(options, {
-
     message: isInitialSync
       ? `${messages.length}件のメールが見つかりました（直近90日）`
       : `${messages.length}件のメールを取得、解析中…`,
-
-    message: `${messages.length}件のメールを取得、解析中…`,
-
     fetchedMessages: messages.length,
   });
 
@@ -274,9 +257,7 @@ export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
     return result;
   }
 
-
   let merchantMap: Map<string, string>;
-
   try {
     merchantMap = buildMerchantMap(await getMerchantMap());
   } catch (err) {
@@ -369,21 +350,6 @@ export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
     }
   }
 
-
-  emitProgress(options, {
-    message: `${transactionInputs.length}件の取引を登録中…`,
-    stagedTransactions: transactionInputs.length,
-  });
-
-  if (transactionInputs.length > 0) {
-    try {
-      const insertResult = await bulkCreateTransactions(transactionInputs);
-      result.newTransactions = insertResult.inserted;
-      result.duplicatesSkipped += insertResult.skipped;
-    } catch (err) {
-      throw new Error(`DB write error: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
   try {
     await db.gmail_sync.put({
       id: 1,
