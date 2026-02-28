@@ -277,12 +277,17 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
           <div className="setup-desc">月収・固定費・貯蓄目標を入力してください</div>
         </div>
       ) : (
-        <RemainingCard
-          remaining={remaining}
-          totalExpenses={expenses}
-          disposable={disposable}
-          pendingExpenses={pendingExpenses}
-        />
+        <div className="hero-card-wrap">
+          <RemainingCard
+            remaining={remaining}
+            totalExpenses={expenses}
+            disposable={disposable}
+            pendingExpenses={pendingExpenses}
+            monthlyIncome={settings.monthlyIncome}
+            fixedCostTotal={settings.fixedCostTotal}
+            monthlySavingsTarget={settings.monthlySavingsTarget}
+          />
+        </div>
       )}
 
       {showSettings && (
