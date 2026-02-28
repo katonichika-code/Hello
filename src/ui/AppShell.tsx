@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getTransactions, getSettings, getBudgets, type Transaction } from '../db/repo';
-import { ensureDefaults } from '../db/database';
+import { getTransactions, getSettings, type Transaction } from '../db/repo';
+import { db, ensureDefaults } from '../db/database';
 import { currentMonth } from '../domain/computations';
 import { HomeScreen } from './screens/HomeScreen';
 import { SharedScreen } from './screens/SharedScreen';
@@ -26,24 +26,24 @@ export function AppShell() {
     (async () => {
       try {
         await ensureDefaults();
-        const month = currentMonth();
-        const [settings, personalBudgets, sharedBudgets] = await Promise.all([
+        const [settings, pinnedBudgetCount] = await Promise.all([
           getSettings(),
-          getBudgets(month, 'personal'),
-          getBudgets(month, 'shared'),
+          db.budgets.where('pinned').equals(1).count(),
         ]);
 
-        // Readable intent: each condition independently prevents meaningful usage
+        // Readable intent: each condition independently prevents meaningful usage.
+        // NOTE: onboarding should not depend on *current month* budgets only, otherwise
+        // users re-enter onboarding every month rollover despite existing data.
         const settingsIncomplete = settings.monthly_income <= 0;
-        const hasPersonalBudgets = personalBudgets.some((b) => b.pinned === 1);
-        const hasSharedBudgets = sharedBudgets.some((b) => b.pinned === 1);
-        const noBudgetsAtAll = !hasPersonalBudgets && !hasSharedBudgets;
+        const noBudgetsAtAll = pinnedBudgetCount === 0;
 
         // Trigger: settings missing OR no budgets in either wallet
         const needsOnboarding = settingsIncomplete || noBudgetsAtAll;
         setShowOnboarding(needsOnboarding);
-      } catch {
-        // Don't block app
+      } catch (error) {
+        console.error('[Onboarding] Failed to evaluate onboarding state', error);
+        // Avoid false onboarding trigger when query fails transiently.
+        setShowOnboarding(false);
       } finally {
         setOnboardingChecked(true);
       }
@@ -55,15 +55,12 @@ export function AppShell() {
     fetchTransactions();
   };
 
-  // Request persistent storage (iOS Safari evicts non-persistent IndexedDB)
+  // Storage status hint (persist() request is performed during app bootstrap in main.tsx)
   useEffect(() => {
     (async () => {
-      if (navigator.storage?.persist) {
-        const granted = await navigator.storage.persist();
-        setStoragePersisted(granted);
-        if (import.meta.env.DEV) {
-          console.log(`[Kakeibo] storage.persist() → ${granted}`);
-        }
+      if (navigator.storage?.persisted) {
+        const persisted = await navigator.storage.persisted();
+        setStoragePersisted(persisted);
       }
     })();
   }, []);
