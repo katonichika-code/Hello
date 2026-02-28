@@ -1,4 +1,12 @@
 /**
+ * Phase 1.5 audit findings:
+ * 1) Database name is a fixed string (`kakeibo-db`) — good, not dynamically generated.
+ * 2) Version chain includes v1, v2, v3, v4 and all prior versions are preserved in-order.
+ * 3) Version numbers are sequential (1 → 2 → 3 → 4) with no gaps.
+ * 4) Upgrade callbacks exist for v2, v3, v4 and backfill changed fields.
+ * 5) No `db.delete()` usage was found in normal app flow (critical data-loss pattern not present).
+ * 6) No explicit `db.open()` + destructive recovery handler exists; Dexie lazy-open pattern is used.
+ *
  * IndexedDB database definition using Dexie.
  * All data persists in the browser — no server required.
  */
@@ -123,6 +131,16 @@ class KakeiboDB extends Dexie {
 }
 
 export const db = new KakeiboDB();
+
+db.on('ready', () => {
+  console.log('[Dexie] Database ready');
+  void db.settings.count().then((c) => console.log(`[Dexie] Settings rows: ${c}`));
+  void db.transactions.count().then((c) => console.log(`[Dexie] Transaction rows: ${c}`));
+});
+
+db.on('versionchange', () => {
+  console.warn('[Dexie] Version change detected — another tab may have upgraded the DB');
+});
 
 // Ensure default settings row exists
 export async function ensureDefaults(): Promise<void> {
