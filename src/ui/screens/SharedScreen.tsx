@@ -14,6 +14,7 @@ import {
 } from '../../domain/computations';
 import type { Budget } from '../../domain/types';
 import { BudgetCard } from '../components/BudgetCard';
+import { TransactionDetailSheet } from '../components/TransactionDetailSheet';
 
 /** Convert API budget to domain Budget */
 function toDomainBudget(api: ApiBudget): Budget {
@@ -35,6 +36,7 @@ export interface SharedScreenProps {
 }
 
 export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedScreenProps) {
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const shared = useMemo(() => forWallet(
     transactions.map((t) => ({
       ...t,
@@ -66,7 +68,10 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
 
   const budgetStatuses = useMemo(() => budgets.map((b) => categoryRemaining(b, shared)), [budgets, shared]);
 
-  const recent = useMemo(() => shared.filter((t) => t.amount < 0).slice(0, 10), [shared]);
+  const recent = useMemo(
+    () => transactions.filter((t) => (t.wallet || 'personal') === 'shared' && t.amount < 0).slice(0, 10),
+    [transactions],
+  );
 
   // Copy previous month budgets
   const [copyResult, setCopyResult] = useState<string | null>(null);
@@ -353,7 +358,19 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
         <div className="recent-txns">
           <h4>最近の共有取引</h4>
           {recent.map((t) => (
-            <div key={t.id} className="recent-row">
+            <div
+              key={t.id}
+              className="recent-row clickable"
+              onClick={() => setSelectedTx(t)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedTx(t);
+                }
+              }}
+            >
               <span className="recent-desc">{t.description}</span>
               <span className="recent-cat">{t.category}</span>
               <span className="recent-amount expense">
@@ -368,9 +385,18 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
       {shared.length === 0 && (
         <div className="shared-empty">
           <p>共有の支出はまだありません</p>
-          <p className="shared-empty-hint">ホーム画面の追加ボタンから支出を登録できます</p>
+          <p className="shared-empty-hint">+ボタンで「共有」を選んで支出を追加できます</p>
         </div>
       )}
+
+      <TransactionDetailSheet
+        transaction={selectedTx}
+        onClose={() => setSelectedTx(null)}
+        onUpdate={() => {
+          setSelectedTx(null);
+          onRefresh();
+        }}
+      />
     </div>
   );
 }

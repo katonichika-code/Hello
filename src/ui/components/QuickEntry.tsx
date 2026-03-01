@@ -11,6 +11,7 @@ export function QuickEntry({ onSaved, onSuccess }: QuickEntryProps) {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
+  const [wallet, setWallet] = useState<'personal' | 'shared'>('personal');
   const [saving, setSaving] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
 
@@ -32,7 +33,7 @@ export function QuickEntry({ onSaved, onSuccess }: QuickEntryProps) {
         amount: -Math.abs(num),
         category: cat,
         account: 'cash',
-        wallet: 'personal',
+        wallet,
         source: 'manual',
         description: desc,
         hash,
@@ -53,6 +54,25 @@ export function QuickEntry({ onSaved, onSuccess }: QuickEntryProps) {
 
   return (
     <div className="quick-entry">
+      <div className="wallet-toggle">
+        <button
+          type="button"
+          className={`toggle-btn ${wallet === 'personal' ? 'active' : ''}`}
+          onClick={() => setWallet('personal')}
+          disabled={saving}
+        >
+          個人
+        </button>
+        <button
+          type="button"
+          className={`toggle-btn ${wallet === 'shared' ? 'active' : ''}`}
+          onClick={() => setWallet('shared')}
+          disabled={saving}
+        >
+          共有
+        </button>
+      </div>
+
       <div className="quick-amount-row">
         <span className="yen-sign">¥</span>
         <input
