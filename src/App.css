@@ -1152,6 +1152,81 @@
 .analytics-card-value.income { color: var(--success); }
 .analytics-card-value.expense { color: var(--danger); }
 
+.plan-actual-card {
+  background: var(--k-surface, var(--surface, #fff));
+  border-radius: var(--k-radius-xl, 24px);
+  padding: 20px 16px;
+  margin: 0 0 8px;
+  box-shadow: var(--k-shadow-md, var(--shadow, 0 4px 12px rgba(0,0,0,0.08)));
+}
+
+.plan-actual-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--k-text-primary, var(--text, #1A1A2E));
+  margin: 0 0 16px;
+}
+
+.plan-actual-row {
+  margin-bottom: 14px;
+}
+
+.plan-actual-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 4px;
+  gap: 12px;
+}
+
+.plan-actual-category {
+  font-weight: 600;
+  color: var(--k-text-primary, var(--text));
+}
+
+.plan-actual-amounts {
+  color: var(--k-text-secondary, var(--subtle));
+}
+
+.plan-actual-bar-bg {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--k-bg, var(--bg, #F3F4F6));
+  overflow: hidden;
+}
+
+.plan-actual-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.plan-actual-remaining {
+  font-size: 12px;
+  text-align: right;
+  margin-top: 2px;
+}
+
+.plan-actual-unset {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.plan-actual-unset h4 {
+  margin: 0 0 6px;
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+.plan-actual-unset-row {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
 .collapsible-section {
   background: var(--surface);
   border-radius: var(--radius);
