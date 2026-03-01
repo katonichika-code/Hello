@@ -1622,3 +1622,157 @@
 .legend-dot.actual { background: var(--k-positive); }
 .legend-dot.budget { background: #9CA3AF; }
 .legend-dot.previous { background: #D1D5DB; }
+
+.tx-row-clickable,
+.recent-row.clickable {
+  cursor: pointer;
+}
+
+.tx-row-clickable:active,
+.recent-row.clickable:active {
+  opacity: 0.72;
+}
+
+.tx-detail-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--k-surface, #fff);
+  border-radius: 24px 24px 0 0;
+  padding: 16px 20px 32px;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: slideUp 0.25s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.tx-detail-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 999;
+}
+
+.tx-detail-sheet .drag-handle {
+  width: 40px;
+  height: 4px;
+  background: #d1d5db;
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+
+.tx-detail-headline {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tx-detail-merchant {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.tx-detail-date {
+  color: var(--k-text-secondary, #6b7280);
+  font-size: 14px;
+}
+
+.tx-detail-amount {
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.tx-detail-label {
+  display: block;
+  font-size: 13px;
+  color: var(--k-text-secondary, #4b5563);
+  margin: 12px 0 6px;
+}
+
+.tx-detail-category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+
+.category-chip {
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  border: 1px solid var(--k-border, #e5e7eb);
+  background: var(--k-surface, #fff);
+  color: var(--k-text-primary, #1a1a2e);
+  cursor: pointer;
+}
+
+.category-chip.selected {
+  background: var(--k-primary, #059669);
+  color: #fff;
+  border-color: var(--k-primary, #059669);
+}
+
+.wallet-radio {
+  display: flex;
+  gap: 16px;
+  margin: 8px 0 16px;
+}
+
+.wallet-radio label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tx-detail-input {
+  width: 100%;
+  border: 1px solid var(--k-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.tx-detail-amount-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tx-detail-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  gap: 12px;
+}
+
+.btn-save {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--k-primary, #059669);
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  font-size: 15px;
+}
+
+.btn-delete {
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: none;
+  color: var(--k-danger, #dc2626);
+  font-weight: 600;
+  border: 1px solid var(--k-danger, #dc2626);
+  font-size: 15px;
+}

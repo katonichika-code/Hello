@@ -159,6 +159,17 @@ export async function updateTransactionCategory(
   return { ...existing, category, category_source: 'manual' };
 }
 
+export async function updateTransaction(
+  id: string,
+  updates: Partial<Pick<Transaction, 'category' | 'wallet' | 'amount' | 'description'>>,
+): Promise<void> {
+  await db.transactions.update(id, updates);
+}
+
+export async function deleteTransaction(id: string): Promise<void> {
+  await db.transactions.delete(id);
+}
+
 // --- Settings ---
 
 export async function getSettings(): Promise<ApiSettings> {
@@ -285,6 +296,24 @@ export async function upsertMerchantMapping(
   };
   await db.merchant_map.put(mapping);
   return mapping;
+}
+
+export async function upsertMerchantMap(merchantKey: string, category: string): Promise<void> {
+  const existing = await db.merchant_map.get(merchantKey);
+  if (existing) {
+    await db.merchant_map.update(merchantKey, {
+      category,
+      updated_at: new Date().toISOString(),
+      hits: (existing.hits || 0) + 1,
+    });
+  } else {
+    await db.merchant_map.put({
+      merchant_key: merchantKey,
+      category,
+      updated_at: new Date().toISOString(),
+      hits: 1,
+    });
+  }
 }
 
 export async function bulkApplyMerchantCategory(

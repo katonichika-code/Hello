@@ -13,6 +13,7 @@ import { SpendingPaceChart } from '../components/SpendingPaceChart';
 import { BudgetCard } from '../components/BudgetCard';
 import { ProjectionCard } from '../components/ProjectionCard';
 import { QuickEntry } from '../components/QuickEntry';
+import { TransactionDetailSheet } from '../components/TransactionDetailSheet';
 import {
   isConnected,
   requestAccessToken,
@@ -75,6 +76,7 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
   const [copyResult, setCopyResult] = useState<string | null>(null);
   const [entryOpen, setEntryOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const touchStartY = useRef<number | null>(null);
 
   const loadGmailSyncMeta = useCallback(async () => {
@@ -236,7 +238,19 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
         <div className="recent-txns">
           <h4>最近の取引</h4>
           {recent.map((t) => (
-            <div key={t.id} className="recent-row">
+            <div
+              key={t.id}
+              className="recent-row clickable"
+              onClick={() => setSelectedTx(t)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedTx(t);
+                }
+              }}
+            >
               <span className="recent-desc">{t.description}</span>
               <span className="recent-cat">{t.category}</span>
               <span className={`recent-amount ${t.amount < 0 ? 'expense' : 'income'}`}>
@@ -279,6 +293,15 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
       )}
 
       {toast && <div className="quick-toast">{toast}</div>}
+
+      <TransactionDetailSheet
+        transaction={selectedTx}
+        onClose={() => setSelectedTx(null)}
+        onUpdate={() => {
+          setSelectedTx(null);
+          void onRefresh();
+        }}
+      />
     </div>
   );
 }
