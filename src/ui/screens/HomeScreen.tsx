@@ -188,6 +188,7 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
       ) : (
         <div className="hero-card-wrap">
           <RemainingCard
+            selectedMonth={selectedMonth}
             remaining={remaining}
             totalExpenses={expenses}
             disposable={disposable}

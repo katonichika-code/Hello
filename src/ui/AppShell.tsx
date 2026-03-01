@@ -28,7 +28,16 @@ export function AppShell() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [storagePersisted, setStoragePersisted] = useState<boolean | null>(null);
-  const [persistHintDismissed, setPersistHintDismissed] = useState(false);
+  const [persistHintDismissed, setPersistHintDismissed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+    if (isStandaloneMode) return true;
+
+    return localStorage.getItem('pwa-banner-dismissed') === 'true';
+  });
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [showSettingsScreen, setShowSettingsScreen] = useState(false);
@@ -75,11 +84,11 @@ export function AppShell() {
         const persisted = await navigator.storage.persisted();
         setStoragePersisted(persisted);
       }
-      setPersistHintDismissed(localStorage.getItem('pwa_banner_dismissed') === 'true');
     })();
   }, []);
 
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
   const shouldShowPersistHint = storagePersisted === false && !persistHintDismissed && !isStandalone;
 
   const fetchTransactions = useCallback(async () => {
@@ -188,7 +197,7 @@ export function AppShell() {
             className="persist-hint-dismiss"
             aria-label="閉じる"
             onClick={() => {
-              localStorage.setItem('pwa_banner_dismissed', 'true');
+              localStorage.setItem('pwa-banner-dismissed', 'true');
               setPersistHintDismissed(true);
             }}
           >
