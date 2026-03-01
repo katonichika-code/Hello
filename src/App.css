@@ -26,14 +26,40 @@
   color: var(--text);
 }
 
-.month-select {
-  padding: 0.375rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-  background: var(--surface);
-  color: var(--text);
-  min-height: 36px;
+.header-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.month-nav-btn {
+  border: none;
+  background: transparent;
+  color: var(--k-text-secondary);
+  font-size: 1.1rem;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--k-radius-full);
+}
+
+.month-display {
+  min-width: 2.5rem;
+  text-align: center;
+  font-weight: 600;
+  color: var(--k-text-primary);
+}
+
+.month-display.home {
+  font-size: 1.125rem;
 }
 
 /* Screen container — horizontal scroll-snap */
@@ -333,16 +359,6 @@
   padding-bottom: calc(6rem + var(--k-safe-bottom));
 }
 
-.home-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.home-month-title {
-  margin: 0;
-  font-size: var(--k-text-lg);
-}
 
 .settings-icon-btn {
   border: none;
@@ -482,26 +498,25 @@
 
 .hero-card {
   background: var(--k-surface);
-  border-radius: var(--k-radius-xl);
-  padding: var(--k-sp-6);
-  box-shadow: var(--k-shadow-md);
-  margin: var(--k-sp-4);
-  border: 1px solid transparent;
+  border-radius: var(--k-radius-xl, 24px);
+  padding: 24px;
+  margin: 0 16px 16px;
+  box-shadow: var(--k-shadow-md, 0 4px 12px rgba(0,0,0,0.08));
 }
 
-.hero-card-positive {
-  background: linear-gradient(180deg, var(--k-positive-bg) 0%, var(--k-surface) 35%);
-  border-color: color-mix(in srgb, var(--k-positive) 25%, var(--k-surface));
+.hero-card--danger {
+  background: var(--k-danger-bg, #FEF2F2);
+  border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
-.hero-card-warning {
-  background: linear-gradient(180deg, var(--k-warning-bg) 0%, var(--k-surface) 35%);
-  border-color: color-mix(in srgb, var(--k-warning) 25%, var(--k-surface));
+.hero-card--warning {
+  background: var(--k-warning-bg, #FFFBEB);
+  border: 1px solid rgba(217, 119, 6, 0.2);
 }
 
-.hero-card-danger {
-  background: linear-gradient(180deg, var(--k-danger-bg) 0%, var(--k-surface) 35%);
-  border-color: color-mix(in srgb, var(--k-danger) 25%, var(--k-surface));
+.hero-card--positive {
+  background: var(--k-positive-bg, #ECFDF5);
+  border: 1px solid rgba(5, 150, 105, 0.2);
 }
 
 .hero-card-top {
@@ -534,6 +549,12 @@
 .hero-number-positive { color: var(--k-positive); }
 .hero-number-warning { color: var(--k-warning); }
 .hero-number-danger { color: var(--k-danger); }
+
+.hero-daily-budget {
+  font-size: var(--k-text-sm);
+  color: var(--k-text-secondary);
+  margin-bottom: var(--k-sp-3);
+}
 
 .hero-progress {
   height: 6px;
@@ -649,18 +670,6 @@
   box-shadow: var(--shadow-lg);
 }
 
-/* When inside shared-screen, pin to bottom */
-.shared-screen .quick-entry {
-  position: fixed;
-  bottom: 44px; /* above page dots */
-  left: 0;
-  right: 0;
-  border-radius: 0;
-  z-index: 10;
-  max-width: 600px;
-  margin: 0 auto;
-  border-top: 1px solid var(--border);
-}
 
 .quick-amount-row {
   display: flex;
@@ -1572,3 +1581,44 @@
   color: var(--text);
 }
 .onboarding-action-btn:disabled { opacity: 0.5; }
+
+
+.pace-card {
+  background: var(--k-surface, #fff);
+  border-radius: var(--k-radius-xl, 24px);
+  padding: 20px 16px 12px;
+  margin: 0 16px 16px;
+  box-shadow: var(--k-shadow-md, 0 4px 12px rgba(0,0,0,0.08));
+}
+
+.pace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.pace-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--k-text-primary, #1A1A2E);
+}
+
+.pace-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--k-text-tertiary, #9CA3AF);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-dot.actual { background: var(--k-positive); }
+.legend-dot.budget { background: #9CA3AF; }
+.legend-dot.previous { background: #D1D5DB; }

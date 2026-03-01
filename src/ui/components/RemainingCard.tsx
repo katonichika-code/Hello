@@ -45,14 +45,25 @@ export function RemainingCard({
 
   const nowMonth = `${new Date().getMonth() + 1}月`;
 
+  const dailyBudget = useMemo(() => {
+    const today = new Date();
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const remainingDays = lastDay - today.getDate() + 1;
+    return remaining > 0 ? Math.floor(remaining / remainingDays) : 0;
+  }, [remaining]);
+
   return (
-    <section className={`hero-card hero-card-${tone}`}>
+    <section className={`hero-card hero-card--${tone}`}>
       <div className="hero-card-top">
         <div className="hero-label">今月つかえる残り</div>
         <div className="hero-month">{nowMonth}</div>
       </div>
 
       <div className={`hero-number hero-number-${tone}`}>{formatJPY(remaining)}</div>
+
+      {remaining > 0 && (
+        <div className="hero-daily-budget">今日から月末まで、1日あたり {formatJPY(dailyBudget)} 使えます</div>
+      )}
 
       <div className="hero-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressWidth)}>
         <div className={`hero-progress-fill hero-progress-fill-${tone}`} style={{ width: `${progressWidth}%` }} />

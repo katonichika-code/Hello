@@ -9,6 +9,7 @@ import {
 } from '../../domain/computations';
 import type { Settings, Budget } from '../../domain/types';
 import { RemainingCard } from '../components/RemainingCard';
+import { SpendingPaceChart } from '../components/SpendingPaceChart';
 import { BudgetCard } from '../components/BudgetCard';
 import { ProjectionCard } from '../components/ProjectionCard';
 import { QuickEntry } from '../components/QuickEntry';
@@ -22,7 +23,6 @@ export interface HomeScreenProps {
   transactions: Transaction[];
   selectedMonth: string;
   onRefresh: () => Promise<void> | void;
-  onOpenSettings: () => void;
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
@@ -63,7 +63,7 @@ function toDomainBudget(api: ApiBudget): Budget {
   };
 }
 
-export function HomeScreen({ transactions, selectedMonth, onRefresh, onOpenSettings }: HomeScreenProps) {
+export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScreenProps) {
   const [settings, setSettings] = useState<Settings>({
     monthlyIncome: 0, fixedCostTotal: 0, monthlySavingsTarget: 0,
   });
@@ -180,13 +180,8 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh, onOpenSetti
 
   return (
     <div className="screen-content home-screen">
-      <div className="home-header-row">
-        <h2 className="home-month-title">{selectedMonth}</h2>
-        <button className="settings-icon-btn" type="button" onClick={onOpenSettings} aria-label="設定を開く">⚙️</button>
-      </div>
-
       {needsSetup ? (
-        <div className="setup-prompt" onClick={onOpenSettings}>
+        <div className="setup-prompt">
           <div className="setup-title">はじめに設定</div>
           <div className="setup-desc">月収・固定費・貯蓄目標を入力してください</div>
         </div>
@@ -203,6 +198,8 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh, onOpenSetti
           />
         </div>
       )}
+
+      {!needsSetup && <SpendingPaceChart selectedMonth={selectedMonth} spendableAmount={disposable} />}
 
       {!needsSetup && (
         <div className="sync-oneliner" aria-live="polite">
