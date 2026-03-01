@@ -4,6 +4,7 @@ import { TransactionList } from '../../components/TransactionList';
 import { CsvImport } from '../../components/CsvImport';
 import { UncategorizedInbox } from '../../components/UncategorizedInbox';
 import { BackupRestore } from '../../components/BackupRestore';
+import { MonthlyTrendChart } from '../components/MonthlyTrendChart';
 
 const jpyFmt = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
 const formatJPY = (n: number) => jpyFmt.format(n);
@@ -70,6 +71,8 @@ export function AnalyticsScreen({ transactions, onRefresh }: AnalyticsScreenProp
 
       {/* Uncategorized Inbox — shows only when there are uncategorized items */}
       <UncategorizedInbox transactions={transactions} onUpdate={onRefresh} />
+
+      <MonthlyTrendChart />
 
       {/* Sankey flow diagram — lazy loaded, collapsed by default */}
       <CollapsibleSection title="支出フロー">

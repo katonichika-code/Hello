@@ -1776,3 +1776,105 @@
   border: 1px solid var(--k-danger, #dc2626);
   font-size: 15px;
 }
+
+/* ===== Monthly Trend ===== */
+
+.trend-card {
+  background: var(--k-surface, #fff);
+  border-radius: var(--k-radius-xl, 24px);
+  padding: 20px 16px;
+  margin: 0 16px 16px;
+  box-shadow: var(--k-shadow-md, 0 4px 12px rgba(0, 0, 0, 0.08));
+}
+
+.trend-title {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--k-text-primary, #111827);
+}
+
+.trend-chart-wrap {
+  display: flex;
+  gap: 8px;
+  min-height: 190px;
+}
+
+.trend-y-axis {
+  width: 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--k-text-tertiary, #6b7280);
+  text-align: right;
+  padding-bottom: 22px;
+}
+
+.trend-plot-area {
+  position: relative;
+  flex: 1;
+}
+
+.trend-budget-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed #9ca3af;
+  z-index: 1;
+}
+
+.trend-budget-label {
+  position: absolute;
+  right: 0;
+  top: -11px;
+  background: var(--k-surface, #fff);
+  padding-left: 6px;
+  font-size: 0.7rem;
+  color: var(--k-text-tertiary, #6b7280);
+}
+
+.trend-bars {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  height: 100%;
+  align-items: end;
+}
+
+.trend-bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+}
+
+.trend-bar-rail {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.trend-bar {
+  width: min(24px, 70%);
+  border-radius: 8px 8px 4px 4px;
+  min-height: 3px;
+  transition: height 0.2s ease;
+}
+
+.trend-bar.under {
+  background: #16a34a;
+}
+
+.trend-bar.over {
+  background: #dc2626;
+}
+
+.trend-month-label {
+  font-size: 0.75rem;
+  color: var(--k-text-secondary, #4b5563);
+}

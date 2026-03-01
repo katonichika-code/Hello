@@ -7,6 +7,7 @@
 import { db, ensureDefaults, type DbTransaction, type DbSettings, type DbBudget, type DbMerchantMapping } from './database';
 import { categorizeWithLearning } from '../api/categorizationAdapter';
 import { deriveMerchantKey } from '../api/merchantKey';
+import { lastNMonths } from '../domain/computations';
 
 // Re-export types for consumers (match client.ts shape)
 export type Transaction = DbTransaction;
@@ -28,6 +29,12 @@ export type ApiSettings = Omit<DbSettings, 'id'>;
 export type ApiBudget = DbBudget;
 export type ApiMerchantMapping = DbMerchantMapping;
 export type BulkResult = { inserted: number; skipped: number };
+
+export type MonthlySpendingTrend = {
+  month: string;
+  spending: number;
+  budget: number;
+};
 
 // --- ID generation (same as server) ---
 
@@ -187,6 +194,26 @@ export async function getSettings(): Promise<ApiSettings> {
 export async function updateSettings(data: ApiSettings): Promise<ApiSettings> {
   await db.settings.put({ id: 1, ...data });
   return data;
+}
+
+
+export async function getMonthlySpendingTrend(monthCount: number = 6): Promise<MonthlySpendingTrend[]> {
+  const settings = await getSettings();
+  const budget = Math.max(
+    settings.monthly_income - settings.fixed_cost_total - settings.monthly_savings_target,
+    0,
+  );
+
+  const months = lastNMonths(monthCount);
+  const monthlyTransactions = await Promise.all(months.map((month) => getTransactions(month)));
+
+  return months.map((month, index) => {
+    const spending = monthlyTransactions[index]
+      .filter((txn) => txn.amount < 0)
+      .reduce((sum, txn) => sum + Math.abs(txn.amount), 0);
+
+    return { month, spending, budget };
+  });
 }
 
 // --- Budgets ---
