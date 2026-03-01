@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { db } from '../../db/database';
-import { getSettings, updateSettings } from '../../db/repo';
+import { getSettings, reclassifyUncategorized, updateSettings } from '../../db/repo';
 import { BackupRestore } from '../../components/BackupRestore';
 import {
   isConnected,
@@ -95,6 +95,17 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
       fixed_cost_total: parseInt(fixedCostTotal, 10) || 0,
       monthly_savings_target: parseInt(monthlySavingsTarget, 10) || 0,
     });
+    await onRefresh();
+  };
+
+
+  const handleReclassifyUncategorized = async () => {
+    const count = await reclassifyUncategorized();
+    if (count > 0) {
+      window.alert(`${count}件の取引を再分類しました`);
+    } else {
+      window.alert('再分類する取引はありません');
+    }
     await onRefresh();
   };
 
@@ -217,6 +228,7 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
         <section className="settings-section-card">
           <h3>データ管理</h3>
           <button type="button" className="sync-inline-btn" onClick={onGoAnalytics}>CSV インポートを開く</button>
+          <button type="button" className="sync-inline-btn" onClick={handleReclassifyUncategorized}>未分類を再分類</button>
           <BackupRestore onRestore={() => void onRefresh()} />
         </section>
 
