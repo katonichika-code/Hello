@@ -3,6 +3,7 @@ import { getAllCategories } from '../../api/categorizer';
 import { deriveMerchantKey } from '../../api/merchantKey';
 import {
   deleteTransaction,
+  reclassifyUncategorized,
   type Transaction,
   updateTransaction,
   upsertMerchantMap,
@@ -49,6 +50,8 @@ export function TransactionDetailSheet({ transaction, onClose, onUpdate }: Trans
 
     setSaving(true);
     try {
+      const categoryChanged = transaction.category !== category;
+
       await updateTransaction(transaction.id, {
         category,
         wallet,
@@ -56,11 +59,13 @@ export function TransactionDetailSheet({ transaction, onClose, onUpdate }: Trans
         description: memo.trim(),
       });
 
-      if (transaction.category !== category) {
+      if (categoryChanged) {
         const key = transaction.merchant_key || deriveMerchantKey(memo || transaction.description);
         if (key) {
           await upsertMerchantMap(key, category);
         }
+
+        await reclassifyUncategorized();
       }
 
       onClose();

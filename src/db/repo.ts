@@ -5,6 +5,8 @@
  * enabling a 1:1 swap in UI components.
  */
 import { db, ensureDefaults, type DbTransaction, type DbSettings, type DbBudget, type DbMerchantMapping } from './database';
+import { categorizeWithLearning } from '../api/categorizationAdapter';
+import { deriveMerchantKey } from '../api/merchantKey';
 
 // Re-export types for consumers (match client.ts shape)
 export type Transaction = DbTransaction;
@@ -337,6 +339,48 @@ export async function bulkApplyMerchantCategory(
   }
 
   return { updated: matching.length };
+}
+
+export async function reclassifyUncategorized(): Promise<number> {
+  const uncategorizedTransactions = await db.transactions
+    .filter((tx) => {
+      const currentCategory = tx.category?.trim();
+      return !currentCategory || currentCategory === 'Uncategorized' || currentCategory === '未分類';
+    })
+    .toArray();
+
+  let reclassifiedCount = 0;
+
+  for (const tx of uncategorizedTransactions) {
+    const merchantKey = tx.merchant_key || deriveMerchantKey(tx.description || '');
+
+    if (merchantKey) {
+      const mapping = await db.merchant_map.get(merchantKey);
+      if (mapping?.category) {
+        await db.transactions.update(tx.id, {
+          category: mapping.category,
+          category_source: 'learned',
+          confidence: 1,
+          merchant_key: merchantKey,
+        });
+        reclassifiedCount++;
+        continue;
+      }
+    }
+
+    const result = categorizeWithLearning(tx.description || '', new Map());
+    if (result.category !== 'Uncategorized' && result.category !== '未分類') {
+      await db.transactions.update(tx.id, {
+        category: result.category,
+        category_source: result.categorySource,
+        confidence: result.confidence,
+        merchant_key: tx.merchant_key || result.merchantKey,
+      });
+      reclassifiedCount++;
+    }
+  }
+
+  return reclassifiedCount;
 }
 
 // --- Hash generation (pure, same as client.ts) ---
