@@ -6,6 +6,7 @@ const formatJPY = (n: number) => jpyFmt.format(n);
 type HeroTone = 'positive' | 'warning' | 'danger';
 
 interface RemainingCardProps {
+  selectedMonth: string;
   remaining: number;
   totalExpenses: number;
   disposable: number;
@@ -16,6 +17,7 @@ interface RemainingCardProps {
 }
 
 export function RemainingCard({
+  selectedMonth,
   remaining,
   totalExpenses,
   disposable,
@@ -43,7 +45,7 @@ export function RemainingCard({
     return '使いすぎかも。今月の残りを確認しましょう';
   }, [remaining, remainingRatio]);
 
-  const nowMonth = `${new Date().getMonth() + 1}月`;
+  const nowMonth = `${Number(selectedMonth.split('-')[1])}月`;
 
   const dailyBudget = useMemo(() => {
     const today = new Date();

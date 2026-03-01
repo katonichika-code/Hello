@@ -59,7 +59,7 @@ export function SpendingPaceChart({ selectedMonth, spendableAmount }: SpendingPa
       if (!svgRef.current) return;
       const width = svgRef.current.clientWidth || 320;
       const height = 160;
-      const margin = { top: 8, right: 8, bottom: 20, left: 44 };
+      const margin = { top: 8, right: 8, bottom: 20, left: 65 };
       const innerWidth = width - margin.left - margin.right;
       const innerHeight = height - margin.top - margin.bottom;
 
@@ -163,7 +163,12 @@ export function SpendingPaceChart({ selectedMonth, spendableAmount }: SpendingPa
       }
 
       const xTicks = Array.from(new Set([1, 8, 15, 22, monthMeta.lastDay].filter((d) => d <= monthMeta.lastDay)));
-      const yAxis = d3.axisLeft(y).ticks(3).tickFormat((v) => `¥${d3.format(',')(Number(v))}`);
+      const yAxis = d3.axisLeft(y).ticks(3).tickFormat((v) => {
+        const value = Number(v);
+        if (value === 0) return '¥0';
+        if (value >= 10000) return `${Math.floor(value / 10000)}万`;
+        return `¥${d3.format(',')(value)}`;
+      });
       const xAxis = d3.axisBottom(x).tickValues(xTicks).tickFormat((v) => `${v}`);
 
       g.append('g').attr('class', 'pace-y-axis').call(yAxis);
