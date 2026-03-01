@@ -12,6 +12,16 @@ import { PageDots } from './components/PageDots';
 const SCREEN_LABELS = ['共有', 'ホーム', '分析'] as const;
 const HOME_INDEX = 1;
 
+function shiftMonth(month: string, delta: number): string {
+  const [year, mon] = month.split('-').map(Number);
+  const d = new Date(year, mon - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function monthLabel(month: string): string {
+  return `${Number(month.split('-')[1])}月`;
+}
+
 export function AppShell() {
   const [activeScreen, setActiveScreen] = useState(HOME_INDEX);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth());
@@ -129,30 +139,44 @@ export function AppShell() {
     }
   };
 
-  // Generate month options (12 months back)
-  const months: string[] = [];
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    months.push(`${y}-${m}`);
-  }
+  const homeHeader = activeScreen === HOME_INDEX;
 
   return (
     <div className="app-shell">
       {/* Header */}
       <header className="shell-header">
-        <span className="screen-label">{SCREEN_LABELS[activeScreen]}</span>
-        <select
-          className="month-select"
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-        >
-          {months.map((m) => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
+        <div className="header-main">
+          {!homeHeader && <span className="screen-label">{SCREEN_LABELS[activeScreen]}</span>}
+          <div className="month-nav" aria-label="月の切り替え">
+            <button
+              type="button"
+              className="month-nav-btn"
+              aria-label="前の月"
+              onClick={() => setSelectedMonth((prev) => shiftMonth(prev, -1))}
+            >
+              ‹
+            </button>
+            <span className={`month-display ${homeHeader ? 'home' : ''}`}>{monthLabel(selectedMonth)}</span>
+            <button
+              type="button"
+              className="month-nav-btn"
+              aria-label="次の月"
+              onClick={() => setSelectedMonth((prev) => shiftMonth(prev, 1))}
+            >
+              ›
+            </button>
+          </div>
+        </div>
+        {homeHeader && (
+          <button
+            className="settings-icon-btn"
+            type="button"
+            onClick={() => setShowSettingsScreen(true)}
+            aria-label="設定を開く"
+          >
+            ⚙️
+          </button>
+        )}
       </header>
 
       {/* Storage hint — only if persist denied and not installed as PWA */}
@@ -183,7 +207,6 @@ export function AppShell() {
             transactions={transactions}
             selectedMonth={selectedMonth}
             onRefresh={fetchTransactions}
-            onOpenSettings={() => setShowSettingsScreen(true)}
           />
         </div>
         <div className="screen">
