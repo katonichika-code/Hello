@@ -1,9 +1,11 @@
-import { useState, useMemo, lazy, Suspense } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import type { Transaction } from '../../db/repo';
+import * as repo from '../../db/repo';
 import { TransactionList } from '../../components/TransactionList';
 import { CsvImport } from '../../components/CsvImport';
 import { UncategorizedInbox } from '../../components/UncategorizedInbox';
 import { BackupRestore } from '../../components/BackupRestore';
+import { PlanVsActual } from '../../components/PlanVsActual';
 
 const jpyFmt = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
 const formatJPY = (n: number) => jpyFmt.format(n);
@@ -40,10 +42,26 @@ function CollapsibleSection({
 }
 
 export function AnalyticsScreen({ transactions, onRefresh }: AnalyticsScreenProps) {
-  const income = useMemo(
-    () => transactions.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0),
-    [transactions],
-  );
+  const [monthlyIncome, setMonthlyIncome] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+    void repo
+      .getSettings()
+      .then((settings) => {
+        if (!mounted) return;
+        setMonthlyIncome(settings.monthly_income || 0);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setMonthlyIncome(0);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const income = monthlyIncome;
   const expenseTotal = useMemo(
     () => transactions.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0),
     [transactions],
@@ -68,8 +86,8 @@ export function AnalyticsScreen({ transactions, onRefresh }: AnalyticsScreenProp
         </div>
       </div>
 
-      {/* Uncategorized Inbox — shows only when there are uncategorized items */}
-      <UncategorizedInbox transactions={transactions} onUpdate={onRefresh} />
+      {/* Plan vs Actual */}
+      <PlanVsActual transactions={transactions} />
 
       {/* Sankey flow diagram — lazy loaded, collapsed by default */}
       <CollapsibleSection title="支出フロー">
@@ -78,15 +96,18 @@ export function AnalyticsScreen({ transactions, onRefresh }: AnalyticsScreenProp
         </Suspense>
       </CollapsibleSection>
 
+      {/* Full transaction list with inline editing */}
+      <CollapsibleSection title="取引一覧">
+        <TransactionList transactions={transactions} onUpdate={onRefresh} />
+      </CollapsibleSection>
+
       {/* CSV Import */}
       <CollapsibleSection title="CSV インポート">
         <CsvImport onImportComplete={onRefresh} />
       </CollapsibleSection>
 
-      {/* Full transaction list with inline editing */}
-      <CollapsibleSection title="取引一覧">
-        <TransactionList transactions={transactions} onUpdate={onRefresh} />
-      </CollapsibleSection>
+      {/* Uncategorized Inbox — shows only when there are uncategorized items */}
+      <UncategorizedInbox transactions={transactions} onUpdate={onRefresh} />
 
       {/* Backup / Restore (collapsible) */}
       <BackupRestore onRestore={onRefresh} />
