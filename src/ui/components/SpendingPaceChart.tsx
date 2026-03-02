@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { getTransactions } from '../../db/repo';
 import { currentMonth } from '../../domain/computations';
@@ -41,6 +41,7 @@ function buildCumulativeSeries(month: string, expenses: { date: string; amount: 
 
 export function SpendingPaceChart({ selectedMonth, spendableAmount }: SpendingPaceChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const [showNoData, setShowNoData] = useState(false);
 
   const monthMeta = useMemo(() => {
     const [year, mon] = selectedMonth.split('-').map(Number);
@@ -69,6 +70,14 @@ export function SpendingPaceChart({ selectedMonth, spendableAmount }: SpendingPa
       ]);
 
       if (cancelled) return;
+
+      const hasCurrentMonthExpenses = currentTxns.some((txn) => txn.amount < 0);
+      const shouldShowNoData = selectedMonth === currentMonth() && !hasCurrentMonthExpenses;
+      setShowNoData(shouldShowNoData);
+      if (shouldShowNoData) {
+        svg.selectAll('*').remove();
+        return;
+      }
 
       const currentSeries = buildCumulativeSeries(selectedMonth, currentTxns);
       const prevSeries = buildCumulativeSeries(toPreviousMonth(selectedMonth), prevTxns)
@@ -201,7 +210,11 @@ export function SpendingPaceChart({ selectedMonth, spendableAmount }: SpendingPa
           <span className="legend-dot previous" /> 先月
         </span>
       </div>
-      <svg ref={svgRef} width="100%" height="160" role="img" aria-label="支出ペースグラフ" />
+      {showNoData ? (
+        <div className="pace-empty">今月の支出データがまだありません</div>
+      ) : (
+        <svg ref={svgRef} width="100%" height="160" role="img" aria-label="支出ペースグラフ" />
+      )}
     </section>
   );
 }

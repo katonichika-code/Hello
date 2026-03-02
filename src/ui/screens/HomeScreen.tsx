@@ -182,6 +182,12 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
 
   return (
     <div className="screen-content home-screen">
+      {syncMessage === 'Gmail接続の有効期限が切れました。設定画面から再接続してください。' && (
+        <div className="warning-banner" role="alert">
+          {syncMessage}
+        </div>
+      )}
+
       {needsSetup ? (
         <div className="setup-prompt">
           <div className="setup-title">はじめに設定</div>
@@ -224,9 +230,13 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
       )}
 
       {budgetStatuses.length === 0 && !needsSetup && (
-        <button className="copy-budgets-btn" onClick={handleCopyBudgets}>
-          先月の予算をコピー
-        </button>
+        <div className="empty-state">
+          <div className="empty-state-title">カテゴリ予算を設定しましょう</div>
+          <div className="empty-state-description">設定画面から月間予算を設定できます。</div>
+          <button className="copy-budgets-btn" onClick={handleCopyBudgets}>
+            先月の予算をコピー
+          </button>
+        </div>
       )}
       {copyResult && (
         <div className="copy-result" onClick={() => setCopyResult(null)}>{copyResult}</div>
@@ -258,6 +268,17 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
               </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {transactions.length === 0 && !needsSetup && (
+        <div className="empty-state">
+          <div className="empty-state-title">まだ取引がありません</div>
+          <div className="empty-state-description">
+            Gmailを接続してカード利用を自動取り込み、
+            <br />
+            または＋ボタンで手入力できます。
+          </div>
         </div>
       )}
 

@@ -26,7 +26,7 @@ function CollapsibleSection({
   defaultOpen = false,
   children,
 }: {
-  title: string;
+  title: string;  
   defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
@@ -44,6 +44,9 @@ function CollapsibleSection({
 }
 
 export function AnalyticsScreen({ transactions, onRefresh }: AnalyticsScreenProps) {
+
+  const hasData = transactions.length > 0;
+
   const [monthlyIncome, setMonthlyIncome] = useState(0);
 
   useEffect(() => {
@@ -64,6 +67,7 @@ export function AnalyticsScreen({ transactions, onRefresh }: AnalyticsScreenProp
   }, []);
 
   const income = monthlyIncome;
+
   const expenseTotal = useMemo(
     () => transactions.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0),
     [transactions],
@@ -72,6 +76,13 @@ export function AnalyticsScreen({ transactions, onRefresh }: AnalyticsScreenProp
 
   return (
     <div className="screen-content analytics-screen">
+      {!hasData && (
+        <div className="empty-state">
+          <div className="empty-state-title">分析に必要なデータがまだありません</div>
+          <div className="empty-state-description">取引が記録されると、支出の分析が表示されます。</div>
+        </div>
+      )}
+
       {/* Income / Expense / Net summary */}
       <div className="analytics-summary-cards">
         <div className="analytics-card">

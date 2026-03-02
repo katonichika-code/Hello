@@ -345,9 +345,13 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
 
       {/* Copy previous month budgets */}
       {budgetStatuses.length === 0 && (
-        <button className="copy-budgets-btn" onClick={handleCopyBudgets}>
-          先月の予算をコピー
-        </button>
+        <div className="empty-state">
+          <div className="empty-state-title">カテゴリ予算を設定しましょう</div>
+          <div className="empty-state-description">設定画面から月間予算を設定できます。</div>
+          <button className="copy-budgets-btn" onClick={handleCopyBudgets}>
+            先月の予算をコピー
+          </button>
+        </div>
       )}
       {copyResult && (
         <div className="copy-result" onClick={() => setCopyResult(null)}>{copyResult}</div>
@@ -383,9 +387,13 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
 
       {/* Empty state */}
       {shared.length === 0 && (
-        <div className="shared-empty">
-          <p>共有の支出はまだありません</p>
-          <p className="shared-empty-hint">+ボタンで「共有」を選んで支出を追加できます</p>
+<div className="empty-state">
+          <div className="empty-state-title">共有の支出はまだありません</div>
+          <div className="empty-state-description">
+            ＋ボタンで「共有」を選んで支出を追加、
+            <br />
+            または取引をタップして共有に移動できます。
+          </div>
         </div>
       )}
 

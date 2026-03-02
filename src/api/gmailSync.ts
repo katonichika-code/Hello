@@ -99,7 +99,7 @@ async function gmailFetch<T>(endpoint: string): Promise<T> {
 
   if (res.status === 401) {
     accessToken = null;
-    throw new Error('Token expired. Please sync again.');
+    throw new Error('Gmail接続の有効期限が切れました。設定画面から再接続してください。');
   }
 
   if (!res.ok) {
