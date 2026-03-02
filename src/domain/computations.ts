@@ -124,3 +124,17 @@ export function currentMonth(now: Date = new Date()): Month {
   const m = String(now.getMonth() + 1).padStart(2, '0');
   return `${y}-${m}`;
 }
+
+/**
+ * Get the last N months (including the reference month) as YYYY-MM labels.
+ */
+export function lastNMonths(count: number, from: Date = new Date()): Month[] {
+  if (count <= 0) return [];
+
+  return Array.from({ length: count }, (_, index) => {
+    const d = new Date(from.getFullYear(), from.getMonth() - (count - 1 - index), 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  });
+}
