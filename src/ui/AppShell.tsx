@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getTransactions, getSettings, type Transaction } from '../db/repo';
+import { getTransactions, type Transaction } from '../db/repo';
 import { db, ensureDefaults } from '../db/database';
 import { currentMonth } from '../domain/computations';
 import { HomeScreen } from './screens/HomeScreen';
 import { SharedScreen } from './screens/SharedScreen';
 import { AnalyticsScreen } from './screens/AnalyticsScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import { OnboardingStepper } from './components/OnboardingStepper';
+import { OnboardingModal } from './components/OnboardingModal';
 import { PageDots } from './components/PageDots';
 
 const SCREEN_LABELS = ['共有', 'ホーム', '分析'] as const;
@@ -43,28 +43,17 @@ export function AppShell() {
   const [showSettingsScreen, setShowSettingsScreen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Check if onboarding is needed — user cannot derive value without essentials
+  // Check if onboarding modal is needed.
   useEffect(() => {
     (async () => {
       try {
-        await ensureDefaults();
-        const [settings, pinnedBudgetCount] = await Promise.all([
-          getSettings(),
-          db.budgets.where('pinned').equals(1).count(),
-        ]);
-
-        // Readable intent: each condition independently prevents meaningful usage.
-        // NOTE: onboarding should not depend on *current month* budgets only, otherwise
-        // users re-enter onboarding every month rollover despite existing data.
-        const settingsIncomplete = settings.monthly_income <= 0;
-        const noBudgetsAtAll = pinnedBudgetCount === 0;
-
-        // Trigger: settings missing OR no budgets in either wallet
-        const needsOnboarding = settingsIncomplete || noBudgetsAtAll;
+        const settingsRow = await db.settings.get(1);
+        const onboardingCompleted = localStorage.getItem('onboarding_completed') === 'true';
+        const needsOnboarding = !onboardingCompleted
+          && (!settingsRow || !settingsRow.monthly_income || settingsRow.monthly_income <= 0);
         setShowOnboarding(needsOnboarding);
       } catch (error) {
         console.error('[Onboarding] Failed to evaluate onboarding state', error);
-        // Avoid false onboarding trigger when query fails transiently.
         setShowOnboarding(false);
       } finally {
         setOnboardingChecked(true);
@@ -238,7 +227,7 @@ export function AppShell() {
 
       {/* Onboarding stepper */}
       {onboardingChecked && showOnboarding && (
-        <OnboardingStepper onComplete={handleOnboardingComplete} />
+        <OnboardingModal onComplete={handleOnboardingComplete} />
       )}
 
       {showSettingsScreen && (
