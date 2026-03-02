@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
 import type { Transaction } from '../db/repo';
+import * as repo from '../db/repo';
 
 interface SankeyDiagramProps {
   transactions: Transaction[];
@@ -30,93 +31,92 @@ export function SankeyDiagram({ transactions }: SankeyDiagramProps) {
 
   useEffect(() => {
     if (!svgRef.current) return;
+    let mounted = true;
 
-    // Clear previous content
-    d3.select(svgRef.current).selectAll('*').remove();
+    const render = async () => {
+      const svgRoot = d3.select(svgRef.current);
+      svgRoot.selectAll('*').remove();
 
-    // Filter expenses only (negative amounts)
-    const expenses = transactions.filter((t) => t.amount < 0);
+      const settings = await repo.getSettings();
 
-    if (expenses.length === 0) {
-      return;
-    }
-
-    // Aggregate by account -> category
-    const flows = new Map<string, number>();
-    expenses.forEach((t) => {
-      // Translate account for display
-      const accountLabel = t.account === 'card' ? 'カード' : '現金';
-      const key = `${accountLabel}|${t.category}`;
-      flows.set(key, (flows.get(key) || 0) + Math.abs(t.amount));
-    });
-
-    // Build nodes and links
-    const accountSet = new Set<string>();
-    const categorySet = new Set<string>();
-
-    expenses.forEach((t) => {
-      const accountLabel = t.account === 'card' ? 'カード' : '現金';
-      accountSet.add(accountLabel);
-      categorySet.add(t.category);
-    });
-
-    const accounts = Array.from(accountSet);
-    const categories = Array.from(categorySet);
-
-    const nodes: SankeyNode[] = [
-      ...accounts.map((name) => ({ name })),
-      ...categories.map((name) => ({ name })),
-    ];
-
-    const nodeIndex = new Map<string, number>();
-    nodes.forEach((n, i) => {
-      nodeIndex.set(n.name, i);
-    });
-
-    const links: SankeyLink[] = [];
-    flows.forEach((value, key) => {
-      const [account, category] = key.split('|');
-      const sourceIdx = nodeIndex.get(account);
-      const targetIdx = nodeIndex.get(category);
-      if (sourceIdx !== undefined && targetIdx !== undefined) {
-        links.push({
-          source: sourceIdx,
-          target: targetIdx,
-          value,
-        });
+      const expenses = transactions.filter((t) => t.amount < 0);
+      if (expenses.length === 0 || !mounted) {
+        return;
       }
-    });
 
-    // Setup dimensions
-    const width = 600;
-    const height = Math.max(300, nodes.length * 30);
-    const margin = { top: 10, right: 120, bottom: 10, left: 120 };
+      const categorySpending = new Map<string, number>();
+      expenses.forEach((t) => {
+        categorySpending.set(t.category, (categorySpending.get(t.category) || 0) + Math.abs(t.amount));
+      });
 
-    const svg = d3
-      .select(svgRef.current)
-      .attr('width', width)
-      .attr('height', height)
-      .attr('viewBox', `0 0 ${width} ${height}`);
+      const categoryNodes = Array.from(categorySpending.entries())
+        .filter(([, amount]) => amount > 0)
+        .sort((a, b) => b[1] - a[1])
+        .map(([category]) => category || '未分類');
 
-    // Create sankey generator
-    const sankeyGenerator = sankey<SankeyNode, SankeyLink>()
-      .nodeWidth(20)
-      .nodePadding(15)
-      .extent([
-        [margin.left, margin.top],
-        [width - margin.right, height - margin.bottom],
-      ]);
+      const nodes: SankeyNode[] = [
+        { name: '収入' },
+        { name: '固定費' },
+        { name: '貯蓄' },
+        { name: '変動費' },
+        ...categoryNodes.map((name) => ({ name })),
+      ];
 
-    const { nodes: sankeyNodes, links: sankeyLinks } = sankeyGenerator({
-      nodes: nodes.map((d) => ({ ...d })),
-      links: links.map((d) => ({ ...d })),
-    });
+      const nodeIndex = new Map<string, number>();
+      nodes.forEach((n, i) => nodeIndex.set(n.name, i));
 
-    // Color scale
-    const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+      const income = settings.monthly_income || 0;
+      const fixedCost = settings.fixed_cost_total || 0;
+      const savingsTarget = settings.monthly_savings_target || 0;
+      const spendable = Math.max(income - fixedCost - savingsTarget, 0);
 
-    // Draw links
-    svg
+      const links: SankeyLink[] = [
+        { source: nodeIndex.get('収入')!, target: nodeIndex.get('固定費')!, value: fixedCost },
+        { source: nodeIndex.get('収入')!, target: nodeIndex.get('貯蓄')!, value: savingsTarget },
+        { source: nodeIndex.get('収入')!, target: nodeIndex.get('変動費')!, value: spendable },
+      ];
+
+      categoryNodes.forEach((name) => {
+        const value = categorySpending.get(name) || 0;
+        if (value <= 0) return;
+        const target = nodeIndex.get(name);
+        const source = nodeIndex.get('変動費');
+        if (target === undefined || source === undefined) return;
+        links.push({ source, target, value });
+      });
+
+      if (!mounted) return;
+
+      // Setup dimensions
+      const width = 600;
+      const height = Math.max(300, nodes.length * 30);
+      const margin = { top: 10, right: 120, bottom: 10, left: 120 };
+
+      const svg = d3
+        .select(svgRef.current)
+        .attr('width', width)
+        .attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`);
+
+      // Create sankey generator
+      const sankeyGenerator = sankey<SankeyNode, SankeyLink>()
+        .nodeWidth(20)
+        .nodePadding(15)
+        .extent([
+          [margin.left, margin.top],
+          [width - margin.right, height - margin.bottom],
+        ]);
+
+      const { nodes: sankeyNodes, links: sankeyLinks } = sankeyGenerator({
+        nodes: nodes.map((d) => ({ ...d })),
+        links: links.map((d) => ({ ...d })),
+      });
+
+      // Color scale
+      const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+
+      // Draw links
+      svg
       .append('g')
       .attr('class', 'links')
       .selectAll('path')
@@ -131,8 +131,8 @@ export function SankeyDiagram({ transactions }: SankeyDiagramProps) {
       .attr('stroke-opacity', 0.5)
       .attr('stroke-width', (d) => Math.max(1, d.width || 0));
 
-    // Draw nodes
-    svg
+      // Draw nodes
+      svg
       .append('g')
       .attr('class', 'nodes')
       .selectAll('rect')
@@ -144,8 +144,8 @@ export function SankeyDiagram({ transactions }: SankeyDiagramProps) {
       .attr('height', (d) => (d.y1 || 0) - (d.y0 || 0))
       .attr('fill', (d) => colorScale(d.name));
 
-    // Draw labels
-    svg
+      // Draw labels
+      svg
       .append('g')
       .attr('class', 'labels')
       .selectAll('text')
@@ -156,7 +156,14 @@ export function SankeyDiagram({ transactions }: SankeyDiagramProps) {
       .attr('dy', '0.35em')
       .attr('text-anchor', (d) => ((d.x0 || 0) < width / 2 ? 'end' : 'start'))
       .attr('font-size', '12px')
-      .text((d) => d.name);
+        .text((d) => d.name);
+    };
+
+    void render();
+
+    return () => {
+      mounted = false;
+    };
   }, [transactions]);
 
   const expenses = transactions.filter((t) => t.amount < 0);
