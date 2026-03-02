@@ -28,6 +28,7 @@ export function AppShell() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [storagePersisted, setStoragePersisted] = useState<boolean | null>(null);
+  const [storageQuotaWarning, setStorageQuotaWarning] = useState<string | null>(null);
   const [persistHintDismissed, setPersistHintDismissed] = useState(() => {
     if (typeof window === 'undefined') return false;
 
@@ -83,6 +84,16 @@ export function AppShell() {
       if (navigator.storage?.persisted) {
         const persisted = await navigator.storage.persisted();
         setStoragePersisted(persisted);
+      }
+
+      if (navigator.storage?.estimate) {
+        const { usage, quota } = await navigator.storage.estimate();
+        if (usage && quota) {
+          const percentUsed = (usage / quota) * 100;
+          if (percentUsed > 90) {
+            setStorageQuotaWarning('ストレージ容量が残りわずかです');
+          }
+        }
       }
     })();
   }, []);
@@ -203,6 +214,12 @@ export function AppShell() {
           >
             ×
           </button>
+        </div>
+      )}
+
+      {storageQuotaWarning && (
+        <div className="warning-banner" role="status" aria-live="polite">
+          {storageQuotaWarning}
         </div>
       )}
 

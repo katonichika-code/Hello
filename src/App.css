@@ -1776,3 +1776,74 @@
   border: 1px solid var(--k-danger, #dc2626);
   font-size: 15px;
 }
+
+.warning-banner {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--k-text-tertiary, #9CA3AF);
+}
+
+.empty-state-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--k-text-secondary, #6B7280);
+  margin-bottom: 8px;
+}
+
+.empty-state-description {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pace-empty {
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  color: var(--k-text-tertiary, #9CA3AF);
+  font-size: 14px;
+  text-align: center;
+}
+
+.settings-privacy-note {
+  margin: 12px 8px 4px;
+  color: #9ca3af;
+  font-size: 12px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.settings-privacy-note p {
+  margin: 0;
+}
+
+.app-error-boundary {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 24px;
+}
+
+.app-error-boundary button {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: #059669;
+  color: #fff;
+  font-weight: 600;
+}

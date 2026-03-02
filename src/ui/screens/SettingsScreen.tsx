@@ -234,10 +234,14 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
 
         <section className="settings-section-card">
           <h3>アプリ情報</h3>
-          <p>すべてのデータはこの端末にのみ保存されています</p>
           <p>Storage: {storagePersisted === null ? '確認中' : storagePersisted ? '永続化済み' : '未永続化'}</p>
           <p>Version: {import.meta.env.VITE_APP_VERSION || 'dev'}</p>
         </section>
+
+        <div className="settings-privacy-note" aria-label="プライバシーメッセージ">
+          <span role="img" aria-hidden="true">🔒</span>
+          <p>すべてのデータはこの端末にのみ保存されています。<br />サーバーへの送信は一切行いません。</p>
+        </div>
       </div>
     </div>
   );
