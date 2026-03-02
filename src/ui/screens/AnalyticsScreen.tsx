@@ -5,7 +5,9 @@ import { TransactionList } from '../../components/TransactionList';
 import { CsvImport } from '../../components/CsvImport';
 import { UncategorizedInbox } from '../../components/UncategorizedInbox';
 import { BackupRestore } from '../../components/BackupRestore';
-import { PlanVsActual } from '../../components/PlanVsActual';
+
+import { MonthlyTrendChart } from '../components/MonthlyTrendChart';
+
 
 const jpyFmt = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
 const formatJPY = (n: number) => jpyFmt.format(n);
@@ -88,6 +90,8 @@ export function AnalyticsScreen({ transactions, onRefresh }: AnalyticsScreenProp
 
       {/* Plan vs Actual */}
       <PlanVsActual transactions={transactions} />
+
+      <MonthlyTrendChart />
 
       {/* Sankey flow diagram — lazy loaded, collapsed by default */}
       <CollapsibleSection title="支出フロー">
