@@ -24,11 +24,11 @@ async function gmailFetch<T>(endpoint: string): Promise<T> {
   return res.json();
 }
 
-export async function listVpassMessages(afterEpochMs?: number): Promise<GmailMessage[]> {
-  let query = 'from:statement@vpass.ne.jp subject:ご利用のお知らせ';
+export async function listGmailMessages(searchQuery: string, afterEpochMs?: number): Promise<GmailMessage[]> {
+  let query = searchQuery.trim();
   if (afterEpochMs) {
     const afterSec = Math.floor(afterEpochMs / 1000);
-    query += ` after:${afterSec}`;
+    query = `${query} after:${afterSec}`.trim();
   }
 
   const allMessages: GmailMessage[] = [];

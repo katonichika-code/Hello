@@ -1,18 +1,26 @@
-const CLIENT_ID = '133285269289-a6csmhsg8olfmm11i9fp05i38th2vm9f.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim() ?? '';
+export const GMAIL_READONLY_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
 
 let accessToken: string | null = null;
 
+export function hasGoogleClientId(): boolean {
+  return GOOGLE_CLIENT_ID.length > 0;
+}
+
 export function requestAccessToken(): Promise<string> {
   return new Promise((resolve, reject) => {
+    if (!hasGoogleClientId()) {
+      reject(new Error('Google OAuth の Client ID が未設定です。.env の VITE_GOOGLE_CLIENT_ID を設定してください。'));
+      return;
+    }
     if (!window.google?.accounts) {
       reject(new Error('Google Identity Services not loaded'));
       return;
     }
 
     const tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
+      client_id: GOOGLE_CLIENT_ID,
+      scope: GMAIL_READONLY_SCOPE,
       callback: (response) => {
         if (response.error) {
           reject(new Error(`OAuth error: ${response.error}`));

@@ -3,6 +3,7 @@ import { db } from '../../db/database';
 import { getSettings, reclassifyUncategorized, updateSettings } from '../../db/repo';
 import { BackupRestore } from '../../components/BackupRestore';
 import {
+  hasGoogleClientId,
   isConnected,
   requestAccessToken,
   revokeAccessToken,
@@ -55,6 +56,7 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
   const [fixedCostTotal, setFixedCostTotal] = useState('');
   const [monthlySavingsTarget, setMonthlySavingsTarget] = useState('');
   const [sharedMonthlyBudget, setSharedMonthlyBudget] = useState('');
+  const [gmailSearchQuery, setGmailSearchQuery] = useState('');
   const [storagePersisted, setStoragePersisted] = useState<boolean | null>(null);
 
   const [gmailConnected, setGmailConnected] = useState(isConnected());
@@ -71,6 +73,7 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
     setFixedCostTotal(String(s.fixed_cost_total || ''));
     setMonthlySavingsTarget(String(s.monthly_savings_target || ''));
     setSharedMonthlyBudget(String(s.shared_monthly_budget || ''));
+    setGmailSearchQuery(s.gmail_search_query || '');
   }, []);
 
   const loadSyncMeta = useCallback(async () => {
@@ -97,6 +100,7 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
       fixed_cost_total: parseInt(fixedCostTotal, 10) || 0,
       monthly_savings_target: parseInt(monthlySavingsTarget, 10) || 0,
       shared_monthly_budget: parseInt(sharedMonthlyBudget, 10) || 0,
+      gmail_search_query: gmailSearchQuery,
     });
     await onRefresh();
   };
@@ -112,7 +116,19 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
     await onRefresh();
   };
 
+  const isGmailConfigured = hasGoogleClientId() && gmailSearchQuery.trim().length > 0;
+
   const handleGmailSync = async () => {
+    if (!isGmailConfigured) {
+      setGmailError({
+        message: 'Gmail同期には Google Client ID と検索クエリの設定が必要です。',
+        type: 'auth',
+        timestamp: new Date().toISOString(),
+      });
+      setGmailProgress('設定が必要です');
+      return;
+    }
+
     try {
       setGmailSyncing(true);
       setGmailError(null);
@@ -170,6 +186,16 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
             接続: {gmailConnected ? '接続済み' : '未接続'}
             {lastSyncAt ? ` / 前回: ${new Date(lastSyncAt).toLocaleString('ja-JP')}` : ' / 前回: 未同期'}
           </div>
+          {!isGmailConfigured && (
+            <div className="gmail-sync-warning-banner">
+              <div className="gmail-sync-warning-title">設定が必要です</div>
+              <p>Gmail同期には .env の Google Client ID と Gmail検索クエリを設定してください。他の機能はそのまま利用できます。</p>
+            </div>
+          )}
+          <label>
+            Gmail検索クエリ
+            <input type="text" value={gmailSearchQuery} onChange={(e) => setGmailSearchQuery(e.target.value)} />
+          </label>
           {gmailProgress && <div className="gmail-sync-progress">{gmailProgress}</div>}
           {gmailStatus && (
             <div className="gmail-sync-meta">
@@ -177,7 +203,7 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
             </div>
           )}
           <div className="settings-inline-actions">
-            <button className="gmail-sync-btn" onClick={handleGmailSync} disabled={gmailSyncing}>
+            <button className="gmail-sync-btn" onClick={handleGmailSync} disabled={gmailSyncing || !isGmailConfigured}>
               {gmailSyncing ? '同期中...' : 'Gmail同期'}
             </button>
             {gmailConnected && (

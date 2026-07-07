@@ -1,10 +1,6 @@
-import type { GmailHeader, MailForProvider, MailProvider, ParseFailure, ParseResult, ParsedTransaction } from '../types';
+import type { MailForProvider, MailProvider, ParseFailure, ParseResult, ParsedTransaction } from '../types';
 
 const PROVIDER_ID = 'vpass';
-
-function headerValue(headers: GmailHeader[], name: string): string {
-  return headers.find((header) => header.name.toLowerCase() === name.toLowerCase())?.value ?? '';
-}
 
 function failure(mail: Pick<MailForProvider, 'id' | 'subject'>, reason: string): ParseFailure {
   return {
@@ -43,10 +39,9 @@ export function parse(subject: string, body: string): ParsedTransaction | ParseF
 
 export const vpassProvider: MailProvider = {
   id: PROVIDER_ID,
-  matches(headers) {
-    const from = headerValue(headers, 'From').toLowerCase();
-    const subject = headerValue(headers, 'Subject');
-    return from.includes('statement@vpass.ne.jp') && subject.includes('ご利用のお知らせ');
+  matches() {
+    // The user-configurable Gmail query is responsible for narrowing messages.
+    return true;
   },
   parse(mail): ParseResult {
     return parse(mail.subject, mail.body);

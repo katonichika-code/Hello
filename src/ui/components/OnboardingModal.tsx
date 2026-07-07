@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { requestAccessToken, syncGmail, type SyncResult } from '../../api/gmailSync';
-import { updateSettings } from '../../db/repo';
+import { hasGoogleClientId, requestAccessToken, syncGmail, type SyncResult } from '../../api/gmailSync';
+import { getSettings, updateSettings } from '../../db/repo';
 
 interface OnboardingModalProps {
   onComplete: () => void;
@@ -44,6 +44,10 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
     setGmailSyncing(true);
     setGmailError('');
     try {
+      const settings = await getSettings();
+      if (!hasGoogleClientId() || !settings.gmail_search_query?.trim()) {
+        throw new Error('Gmail同期には Google Client ID と検索クエリの設定が必要です。設定画面で設定してください。');
+      }
       await requestAccessToken();
       const result = await syncGmail();
       setGmailResult(result);
@@ -128,12 +132,13 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
             • データはこの端末にのみ保存
           </p>
 
-          <button type="button" className="onboarding-btn-primary" onClick={handleConnectGmail} disabled={gmailSyncing}>
+          <button type="button" className="onboarding-btn-primary" onClick={handleConnectGmail} disabled={gmailSyncing || !hasGoogleClientId()}>
             {gmailSyncing ? '接続中…' : 'Gmailを接続する'}
           </button>
           <button type="button" className="onboarding-btn-skip" onClick={() => setStep(2)}>
             あとで設定する
           </button>
+          {!hasGoogleClientId() && <p className="onboarding-error">Gmail同期には Google Client ID の設定が必要です。あとで設定画面から接続できます。</p>}
           {gmailError && <p className="onboarding-error">{gmailError}</p>}
         </div>
       )}
