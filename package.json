@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "csvcheck": "tsx src/scripts/csv-check.ts",
     "ruleeval": "tsx src/scripts/rule-eval.ts",
-    "test:domain": "tsx src/scripts/domain-test.ts"
+    "test:domain": "tsx src/scripts/domain-test.ts",
+    "test:gmail": "tsx src/scripts/gmail-fixture-test.ts"
   },
   "dependencies": {
     "d3": "^7.9.0",

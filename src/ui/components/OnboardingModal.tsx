@@ -155,7 +155,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
           </p>
           {gmailResult && (
             <p className="onboarding-copy">
-              Gmail connected: {gmailResult.newTransactions}件の取引を取り込みました
+              Gmail connected: {gmailResult.newTransactions}件の取引を取り込みました{gmailResult.parseFailures.length > 0 ? ` / 取り込めなかったメール ${gmailResult.parseFailures.length}件` : ''}
             </p>
           )}
           <button type="button" className="onboarding-btn-primary" onClick={completeOnboarding}>
