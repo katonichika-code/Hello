@@ -17,7 +17,7 @@ iPhone Safari (HTTPS)
   └── Static hosting (Cloudflare Pages / Vercel)
 ```
 
-**There is no server.** No Express, no SQLite, no backend. All data lives in the browser's IndexedDB via Dexie. OAuth tokens are held in memory only (not persisted). This means zero hosting cost, zero ops burden, full offline support.
+**There is no server.** No backend runtime and no local database file. All data lives in the browser's IndexedDB via Dexie. OAuth tokens are held in memory only (not persisted). This means zero hosting cost, zero ops burden, full offline support.
 
 ## Project Structure
 
@@ -101,8 +101,9 @@ Key indexes on transactions: `monthKey`, `[monthKey+wallet]`, `&hash` (unique), 
 
 ## Roadmap Status
 
-- [x] Phase 0: Branch cleanup, dead code removal, Dexie v4 schema
-- [ ] Phase 1: Gmail sync (GIS + Gmail API + SMBC parser)
-- [ ] Phase 2: UI/UX redesign (Airbnb-like)
-- [ ] Phase 3: Visualization (plan vs actual, asset projection charts)
-- [ ] Phase 4: PWA deploy + quality gates
+- [x] Phase 0: Branch cleanup and Dexie v4 schema
+- [ ] Phase 0 follow-up: Dead code cleanup (audit exists in `docs/ai/current_audit.md`; files not removed yet)
+- [x] Phase 1: Gmail sync foundation (GIS + Gmail API readonly + SMBC Vpass parser + pending transactions)
+- [x] Phase 2: UI/UX redesign foundation (mobile-first 3-screen swipe shell, Home value card, Settings overlay)
+- [ ] Phase 3: Visualization polish (Sankey and monthly trend exist; Plan vs Actual wiring needs verification)
+- [ ] Phase 4: PWA deploy + quality gates (manifest/service worker exist; deploy checklist and CI gates still pending)
