@@ -12,6 +12,8 @@ import {
   forWallet,
   totalExpenses,
   currentMonth,
+  dailyAllowance,
+  dangerCategories,
 } from '../domain/computations';
 import type { Settings, Budget, Transaction } from '../domain/types';
 
@@ -206,6 +208,37 @@ test('projectedMonthEnd: zero expenses returns full remaining', () => {
   const proj = projectedMonthEnd(baseSettings, [], new Date(2025, 0, 15));
   assertEq(proj, 150000, 'projected');
 });
+
+
+
+test('dailyAllowance: month start includes today through month end', () => {
+  assertEq(dailyAllowance(31000, new Date(2025, 0, 1), new Date(2025, 0, 31)), 1000, 'daily allowance');
+});
+
+test('dailyAllowance: month end uses one remaining day', () => {
+  assertEq(dailyAllowance(5000, new Date(2025, 0, 31), new Date(2025, 0, 31)), 5000, 'daily allowance');
+});
+
+test('dailyAllowance: negative remaining stays negative', () => {
+  assertEq(dailyAllowance(-3000, new Date(2025, 0, 29), new Date(2025, 0, 31)), -1000, 'daily allowance');
+});
+
+test('dangerCategories: budget zero is ignored instead of dividing by zero', () => {
+  const budgets: Budget[] = [{
+    id: 'b-zero', month: '2025-01', category: '食費',
+    limitAmount: 0, pinned: true, displayOrder: 0, wallet: 'personal',
+  }];
+  const danger = dangerCategories(budgets, [{ category: '食費', spent: 1000 }], new Date(2025, 0, 15));
+  assertEq(danger.length, 0, 'danger count');
+});
+
+test('dangerCategories: uncategorized-only uses median fallback', () => {
+  const danger = dangerCategories([], [{ category: '未分類', spent: 10000 }], new Date(2025, 0, 1));
+  assertEq(danger.length, 1, 'danger count');
+  assertEq(danger[0].category, '未分類', 'danger category');
+  assertEq(danger[0].reason, 'median', 'fallback reason');
+});
+
 
 test('currentMonth: formats correctly', () => {
   const m = currentMonth(new Date(2025, 0, 15));

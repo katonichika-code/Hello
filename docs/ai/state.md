@@ -2,52 +2,47 @@
 
 ## 読んだファイル
 
-- `README.md`
 - `CLAUDE.md`
 - `package.json`
-- `index.html`
-- `public/manifest.json`
-- `public/sw.js`
-- `src/main.tsx`
-- `src/ui/AppShell.tsx`
+- `src/domain/computations.ts`
+- `src/domain/types.ts`
 - `src/ui/screens/HomeScreen.tsx`
-- `src/ui/screens/SharedScreen.tsx`
-- `src/ui/screens/AnalyticsScreen.tsx`
-- `src/ui/screens/SettingsScreen.tsx`
+- `src/ui/components/RemainingCard.tsx`
+- `src/ui/components/BudgetCard.tsx`
+- `src/ui/components/ProjectionCard.tsx`
+- `src/scripts/domain-test.ts`
+- `src/App.css`
 - `src/db/database.ts`
 - `src/db/repo.ts`
-- `src/api/csvParser.ts`
-- `src/api/gmailSync.ts`
-- `src/components/BackupRestore.tsx`
-- `src/` と `public/` のファイル一覧
+- リポジトリ直下のファイル一覧（`rg --files`）
 
 ## 確認した事実
 
-- 実装は React 19 + Vite 7 + Dexie 4 の serverless PWA。
-- `package.json` に旧 README の `dev:web`, `dev:api`, `smoke` は存在しない。
-- Vite 開発サーバーの基本ポートは 5173。
-- Gmail scope は `https://www.googleapis.com/auth/gmail.readonly` のみ。
-- Dexie schema は v4 で `transactions`, `settings`, `budgets`, `merchant_map`, `gmail_sync` を持つ。
-- JSON backup / restore 導線は `BackupRestore` として存在する。
-- `src/components/ManualEntry.tsx`, `src/components/MonthFilter.tsx`, `src/api/gmailTypes.ts` は import / 参照が見つからない。
-- `src/components/PlanVsActual.tsx` は AnalyticsScreen に JSX 参照があるが import がなく、初回 `npm run build` が失敗した。
+- Definition A は `remainingFreeToSpend(settings, monthTxns)` に実装されており、支出（負数）の絶対値合計を月収・固定費・貯蓄目標から差し引く。
+- `Transaction` は負数を支出、正数を収入として扱う。Gmail 由来の未確定取引は DB/API 型側の `isPending` で表現されるが、Home の残額計算には `transactions` 配列をそのまま domain へ渡しているため、未確定支出も除外せず含まれる。
+- `getSettings()` は `ensureDefaults()` を呼び、settings row がなければ 0 のデフォルト値を作成するため、settings 未設定時の挙動は「セットアップ促し表示」に定義済み。
+- Dexie schema は変更していない。
+- Gmail scope / 銀行 API / 送金 / 課金 / 外部サーバー送信は変更していない。
+- `npm run test:domain`, `npm run lint`, `npm run build` は成功した。build は既存のチャンクサイズ警告のみ出る。
 
 ## 重要な仮説
 
-- `ManualEntry` と `MonthFilter` は旧 UI からの未削除ファイル。
-- `PlanVsActual` は削除対象ではなく、import 漏れまたは途中実装。
-- README の正は CLAUDE.md と実装であり、旧サーバー世代の記述は全面的に古い。
+- 375×667 の first view では、最上部の `RemainingCard` 内に「残額」「1日あたり」「今月使った額/自由予算プログレス」「危険カテゴリチップ」をまとめるのが最もスクロールなし要件を満たしやすい。
+- 予算未設定カテゴリの危険判定は、当月カテゴリ支出の中央値を基準にすると、単独の「未分類のみ」でも過剰ペースを検出できる。
 
 ## 決定
 
-- 原則として README / CLAUDE.md / docs のみ更新したが、初回 `npm run build` が `PlanVsActual` 未 import で失敗したため、共通制約を満たすために最小限の import 追加のみ行った。
-- 死にコードは削除せず `docs/ai/current_audit.md` に根拠付きで一覧化した。
-- README には `package.json` に実在する npm scripts だけを記載した。
+- domain 層に `dailyAllowance(remaining, today, monthEnd)` と `dangerCategories(budgets, monthSpendByCategory, today?)` を追加した。domain 層は React/DB/IO に依存していない。
+- 残額マイナス時は赤で責める文言ではなく、「残りN日、1日¥N抑えると月末±0」という行動提案を表示する。
+- Home 最上部の価値表示から Gmail 同期導線・予算コピー導線を外し、管理系 UI を Home に置かない方針に寄せた。
+- `isPending` 取引は残額に含める。理由: Gmail 通知はカード明細確定前の near-real-time 支出把握が目的であり、Definition A の Σ(当月支出) から除外すると「今月あと使える額」が楽観的になるため。
+- `src/App.css` 末尾付近の余分な `}` により build 時 CSS minify warning が出ていたため、同じ CSS ファイル内の品質ゲート修正として削除した。
 
 ## 次にやること
 
-- `ManualEntry`, `MonthFilter`, `gmailTypes` の削除可否を人間確認後に整理する。
-- PWA deploy / quality gates の実運用手順を固める。
+- 375×667 実機またはブラウザ viewport で、RemainingCard の4要素がスクロールなしに見えるか視覚確認する。
+- 危険カテゴリ判定の閾値（経過率を何ポイント超えたら表示するか）は、実データでノイズが多ければ調整する。
+- Home から外した Gmail 同期導線・予算コピー導線を Settings 側に集約するか確認する。
 
 ## ブロッカー
 
@@ -55,5 +50,5 @@
 
 ## 人間確認事項
 
-- `ManualEntry`, `MonthFilter`, `gmailTypes` を次ラウンドで削除してよいか。
-- Gmail 同期メタデータの `email` 固定値の扱いを見直すか。
+- 危険カテゴリの表示条件を「経過率を少しでも超過」でよいか、例えば +10pt 以上にするか。
+- 予算未設定カテゴリの代替基準を「月間支出中央値」で継続してよいか。

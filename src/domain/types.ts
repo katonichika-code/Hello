@@ -58,6 +58,16 @@ export interface BudgetStatus {
   remaining: number;           // can be negative (overspent)
 }
 
+export interface DangerCategory {
+  category: string;
+  spent: number;
+  budgeted: number | null;     // null when inferred from unbudgeted median
+  spendRatio: number;
+  monthProgressRatio: number;
+  severity: number;
+  reason: 'budget' | 'median';
+}
+
 /** Default settings for first-time users */
 export const DEFAULT_SETTINGS: Settings = {
   monthlyIncome: 0,

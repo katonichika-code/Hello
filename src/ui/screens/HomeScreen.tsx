@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Transaction, ApiSettings, ApiBudget } from '../../db/repo';
-import { getSettings, getBudgets, copyBudgetsFromPrevMonth } from '../../db/repo';
-import { db } from '../../db/database';
+import { getSettings, getBudgets } from '../../db/repo';
 import {
   remainingFreeToSpend,
   totalExpenses,
   categoryRemaining,
+  categoryBreakdown,
+  dailyAllowance,
+  dangerCategories,
 } from '../../domain/computations';
 import type { Settings, Budget } from '../../domain/types';
 import { RemainingCard } from '../components/RemainingCard';
@@ -14,34 +16,11 @@ import { BudgetCard } from '../components/BudgetCard';
 import { ProjectionCard } from '../components/ProjectionCard';
 import { QuickEntry } from '../components/QuickEntry';
 import { TransactionDetailSheet } from '../components/TransactionDetailSheet';
-import {
-  isConnected,
-  requestAccessToken,
-  syncGmail,
-} from '../../api/gmailSync';
 
 export interface HomeScreenProps {
   transactions: Transaction[];
   selectedMonth: string;
   onRefresh: () => Promise<void> | void;
-}
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => {
-      reject(new Error(`Sync timeout after ${Math.floor(timeoutMs / 1000)} seconds`));
-    }, timeoutMs);
-
-    promise
-      .then((value) => {
-        window.clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((error) => {
-        window.clearTimeout(timer);
-        reject(error);
-      });
-  });
 }
 
 function toDomainSettings(api: ApiSettings): Settings {
@@ -69,44 +48,34 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
     monthlyIncome: 0, fixedCostTotal: 0, monthlySavingsTarget: 0,
   });
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
-  const [gmailSyncing, setGmailSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState('');
-
-  const [copyResult, setCopyResult] = useState<string | null>(null);
   const [entryOpen, setEntryOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  const loadGmailSyncMeta = useCallback(async () => {
-    const sync = await db.gmail_sync.get(1);
-    setLastSyncAt(sync?.last_sync_at ?? null);
-  }, []);
-
-  const loadSettings = useCallback(async () => {
-    try {
-      const s = await getSettings();
-      setSettings(toDomainSettings(s));
-    } catch {
-      // use defaults
-    }
-  }, []);
-
-  const loadBudgets = useCallback(async () => {
-    try {
-      const b = await getBudgets(selectedMonth, 'personal');
-      setBudgets(b.filter((x) => x.pinned === 1).map(toDomainBudget));
-    } catch {
-      // use empty
-    }
-  }, [selectedMonth]);
-
-  useEffect(() => { void loadSettings(); }, [loadSettings]);
-  useEffect(() => { void loadBudgets(); }, [loadBudgets]);
   useEffect(() => {
-    void loadGmailSyncMeta();
-  }, [loadGmailSyncMeta]);
+    let active = true;
+    void getSettings()
+      .then((s) => {
+        if (active) setSettings(toDomainSettings(s));
+      })
+      .catch(() => {
+        // use defaults
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void getBudgets(selectedMonth, 'personal')
+      .then((b) => {
+        if (active) setBudgets(b.filter((x) => x.pinned === 1).map(toDomainBudget));
+      })
+      .catch(() => {
+        // use empty
+      });
+    return () => { active = false; };
+  }, [selectedMonth]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -126,11 +95,13 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
   );
   const remaining = useMemo(() => remainingFreeToSpend(settings, domainTxns), [settings, domainTxns]);
   const expenses = useMemo(() => totalExpenses(domainTxns), [domainTxns]);
-  const pendingExpenses = useMemo(
-    () => domainTxns
-      .filter((t) => t.isPending === 1 && t.amount < 0)
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0),
-    [domainTxns],
+  const today = useMemo(() => new Date(), []);
+  const monthEnd = useMemo(() => new Date(today.getFullYear(), today.getMonth() + 1, 0), [today]);
+  const daysRemaining = useMemo(() => (monthEnd.getDate() - today.getDate() + 1), [monthEnd, today]);
+  const dailyAmount = useMemo(() => dailyAllowance(remaining, today, monthEnd), [remaining, today, monthEnd]);
+  const dangerCategoryNames = useMemo(
+    () => dangerCategories(budgets, categoryBreakdown(domainTxns), today).map((c) => c.category),
+    [budgets, domainTxns, today],
   );
   const budgetStatuses = useMemo(() => budgets.map((b) => categoryRemaining(b, domainTxns)), [budgets, domainTxns]);
 
@@ -143,51 +114,8 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
 
   const needsSetup = settings.monthlyIncome === 0;
 
-  const handleCopyBudgets = async () => {
-    try {
-      const result = await copyBudgetsFromPrevMonth(selectedMonth, 'personal');
-      if (result.created === 0 && result.updated === 0) {
-        setCopyResult('前月の予算がありません');
-      } else {
-        setCopyResult(`${result.created}件作成, ${result.updated}件更新`);
-      }
-      void loadBudgets();
-    } catch {
-      setCopyResult('コピー失敗');
-    }
-  };
-
-  const handleSyncAction = async () => {
-    try {
-      setGmailSyncing(true);
-      setSyncMessage('');
-      if (!isConnected()) {
-        await requestAccessToken();
-      }
-      await withTimeout(syncGmail(), 120_000);
-      await loadGmailSyncMeta();
-      await onRefresh();
-      setSyncMessage('同期しました');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '同期に失敗しました';
-      setSyncMessage(message);
-    } finally {
-      setGmailSyncing(false);
-    }
-  };
-
-  const syncLabel = lastSyncAt
-    ? `最終同期: ${new Date(lastSyncAt).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
-    : 'Gmail未接続';
-
   return (
     <div className="screen-content home-screen">
-      {syncMessage === 'Gmail接続の有効期限が切れました。設定画面から再接続してください。' && (
-        <div className="warning-banner" role="alert">
-          {syncMessage}
-        </div>
-      )}
-
       {needsSetup ? (
         <div className="setup-prompt">
           <div className="setup-title">はじめに設定</div>
@@ -200,26 +128,14 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
             remaining={remaining}
             totalExpenses={expenses}
             disposable={disposable}
-            pendingExpenses={pendingExpenses}
-            monthlyIncome={settings.monthlyIncome}
-            fixedCostTotal={settings.fixedCostTotal}
-            monthlySavingsTarget={settings.monthlySavingsTarget}
+            dailyAmount={dailyAmount}
+            daysRemaining={daysRemaining}
+            dangerCategories={dangerCategoryNames}
           />
         </div>
       )}
 
       {!needsSetup && <SpendingPaceChart selectedMonth={selectedMonth} spendableAmount={disposable} />}
-
-      {!needsSetup && (
-        <div className="sync-oneliner" aria-live="polite">
-          <span>{syncLabel}</span>
-          <button type="button" className="sync-inline-btn" onClick={handleSyncAction} disabled={gmailSyncing}>
-            {gmailSyncing ? '同期中…' : lastSyncAt ? '同期' : '接続する'}
-          </button>
-        </div>
-      )}
-
-      {syncMessage && <div className="sync-inline-note">{syncMessage}</div>}
 
       {budgetStatuses.length > 0 && (
         <div className="budget-cards">
@@ -233,13 +149,7 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
         <div className="empty-state">
           <div className="empty-state-title">カテゴリ予算を設定しましょう</div>
           <div className="empty-state-description">設定画面から月間予算を設定できます。</div>
-          <button className="copy-budgets-btn" onClick={handleCopyBudgets}>
-            先月の予算をコピー
-          </button>
         </div>
-      )}
-      {copyResult && (
-        <div className="copy-result" onClick={() => setCopyResult(null)}>{copyResult}</div>
       )}
 
       {!needsSetup && <ProjectionCard transactions={domainTxns} />}
