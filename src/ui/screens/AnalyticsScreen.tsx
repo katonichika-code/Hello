@@ -5,6 +5,7 @@ import { TransactionList } from '../../components/TransactionList';
 import { CsvImport } from '../../components/CsvImport';
 import { UncategorizedInbox } from '../../components/UncategorizedInbox';
 import { BackupRestore } from '../../components/BackupRestore';
+import { PlanVsActual } from '../../components/PlanVsActual';
 
 import { MonthlyTrendChart } from '../components/MonthlyTrendChart';
 
