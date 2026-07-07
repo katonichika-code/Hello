@@ -68,11 +68,11 @@ Remaining Free-to-Spend =
 
 ### Gmail 同期
 
-ブラウザ上の Google Identity Services で OAuth トークンを取得し、Gmail API を直接呼び出します。
+ブラウザ上の Google Identity Services で OAuth トークンを取得し、Gmail API を直接呼び出します。Google OAuth Client ID は `VITE_GOOGLE_CLIENT_ID` 環境変数から読み込み、未設定の場合は Gmail 同期だけ「設定が必要です」と表示します。
 
 - スコープは `https://www.googleapis.com/auth/gmail.readonly` のみです。
 - OAuth アクセストークンはメモリ変数だけに保持し、IndexedDB には保存しません。
-- 検索対象は SMBC Vpass の利用通知メールです。
+- 検索対象は設定画面の「Gmail検索クエリ」で編集できます（初期値は SMBC Vpass の利用通知メール）。
 - 初回同期は直近 90 日を対象にし、以後は `gmail_sync.last_sync_at` 以降を検索します。
 - Gmail 由来の取引は `source: "gmail"`、`isPending: 1` として保存されます。
 

@@ -40,6 +40,7 @@ export interface DbSettings {
   monthly_savings_target: number;
   shared_monthly_budget?: number;
   quick_entry_recents?: QuickEntryRecentSnapshot[];
+  gmail_search_query?: string;
 }
 
 export interface QuickEntryRecentSnapshot {
@@ -180,6 +181,7 @@ export async function ensureDefaults(): Promise<void> {
       fixed_cost_total: 0,
       monthly_savings_target: 0,
       shared_monthly_budget: 0,
+      gmail_search_query: 'from:statement@vpass.ne.jp subject:ご利用のお知らせ',
     });
   }
 }

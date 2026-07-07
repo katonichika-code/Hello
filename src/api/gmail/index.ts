@@ -1,11 +1,11 @@
 import { db } from '../../db/database';
-import { bulkCreateTransactions, generateHash, getMerchantMap, type TransactionInput } from '../../db/repo';
+import { bulkCreateTransactions, generateHash, getMerchantMap, getSettings, type TransactionInput } from '../../db/repo';
 import { buildMerchantMap, categorizeWithLearning } from '../categorizationAdapter';
-import { extractPlainTextBody, getMessageFull, listVpassMessages } from './fetch';
+import { extractPlainTextBody, getMessageFull, listGmailMessages } from './fetch';
 import { vpassProvider } from './providers/vpass';
 import type { GmailHeader, MailForProvider, MailProvider, ParsedTransaction, SyncOptions, SyncResult, SyncProgress } from './types';
 
-export { isConnected, requestAccessToken, revokeAccessToken } from './auth';
+export { hasGoogleClientId, isConnected, requestAccessToken, revokeAccessToken, GMAIL_READONLY_SCOPE } from './auth';
 export type { ParseFailure, ParsedTransaction, SyncResult, SyncProgress } from './types';
 
 const providers: MailProvider[] = [vpassProvider];
@@ -28,6 +28,12 @@ function providerFor(mail: MailForProvider): MailProvider | null {
 
 export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
   const result: SyncResult = { newTransactions: 0, duplicatesSkipped: 0, errors: [], parseFailures: [] };
+
+  const settings = await getSettings();
+  const searchQuery = settings.gmail_search_query?.trim();
+  if (!searchQuery) {
+    throw new Error('Gmail検索クエリが未設定です。設定画面で検索条件を保存してください。');
+  }
 
   emitProgress(options, { message: '認証完了、メール検索中…' });
 
@@ -53,7 +59,7 @@ export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
 
   let messages;
   try {
-    messages = await listVpassMessages(afterMs);
+    messages = await listGmailMessages(searchQuery, afterMs);
   } catch (err) {
     throw new Error(`Gmail API list error: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -173,7 +179,7 @@ export async function syncGmail(options?: SyncOptions): Promise<SyncResult> {
   try {
     await db.gmail_sync.put({
       id: 1,
-      email: 'katonichika@gmail.com',
+      email: '',
       last_sync_at: new Date().toISOString(),
       last_history_id: messages[0]?.id ?? '',
       last_parse_failure_count: result.parseFailures.length,

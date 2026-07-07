@@ -27,6 +27,7 @@ export type TransactionInput = {
   isPending?: number;
 };
 export type ApiSettings = Omit<DbSettings, 'id'>;
+export const DEFAULT_GMAIL_SEARCH_QUERY = 'from:statement@vpass.ne.jp subject:ご利用のお知らせ';
 export type QuickEntryRecent = Omit<QuickEntryRecentSnapshot, 'updated_at'>;
 export type ApiBudget = DbBudget;
 export type ApiMerchantMapping = DbMerchantMapping;
@@ -199,6 +200,7 @@ export async function getSettings(): Promise<ApiSettings> {
     monthly_savings_target: row!.monthly_savings_target,
     shared_monthly_budget: row!.shared_monthly_budget || 0,
     quick_entry_recents: row!.quick_entry_recents || [],
+    gmail_search_query: row!.gmail_search_query || DEFAULT_GMAIL_SEARCH_QUERY,
   };
 }
 
@@ -244,7 +246,12 @@ export async function recordQuickEntryRecent(recent: QuickEntryRecent): Promise<
 
 
 export async function updateSettings(data: ApiSettings): Promise<ApiSettings> {
-  await db.settings.put({ id: 1, ...data, shared_monthly_budget: data.shared_monthly_budget || 0 });
+  await db.settings.put({
+    id: 1,
+    ...data,
+    shared_monthly_budget: data.shared_monthly_budget || 0,
+    gmail_search_query: data.gmail_search_query?.trim() || DEFAULT_GMAIL_SEARCH_QUERY,
+  });
   return data;
 }
 
