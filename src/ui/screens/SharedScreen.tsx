@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { Transaction } from '../../db/repo';
+import type { Transaction, ApiSettings } from '../../db/repo';
 import {
-  getBudgets, copyBudgetsFromPrevMonth,
+  getBudgets, copyBudgetsFromPrevMonth, getSettings,
   bulkCreateTransactions, createBudget, deleteBudget,
   type ApiBudget, type TransactionInput,
 } from '../../db/repo';
@@ -12,11 +12,20 @@ import {
   categoryBreakdown,
   categoryRemaining,
 } from '../../domain/computations';
-import type { Budget } from '../../domain/types';
+import type { Budget, Settings } from '../../domain/types';
 import { BudgetCard } from '../components/BudgetCard';
 import { TransactionDetailSheet } from '../components/TransactionDetailSheet';
 
 /** Convert API budget to domain Budget */
+function toDomainSettings(api: ApiSettings): Settings {
+  return {
+    monthlyIncome: api.monthly_income,
+    fixedCostTotal: api.fixed_cost_total,
+    monthlySavingsTarget: api.monthly_savings_target,
+    sharedMonthlyBudget: api.shared_monthly_budget || 0,
+  };
+}
+
 function toDomainBudget(api: ApiBudget): Budget {
   return {
     id: api.id,
@@ -46,15 +55,27 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
     'shared',
   ), [transactions]);
 
-  const expenses = useMemo(() => totalExpenses(shared), [shared]);
-  const breakdown = useMemo(() => categoryBreakdown(shared), [shared]);
+  const expenses = useMemo(() => totalExpenses(shared, 'shared'), [shared]);
+  const breakdown = useMemo(() => categoryBreakdown(shared, 'shared'), [shared]);
 
   const formatJPY = useMemo(() => {
     const fmt = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
     return (n: number) => fmt.format(n);
   }, []);
 
-  // Shared budgets
+  const [settings, setSettings] = useState<Settings>({
+    monthlyIncome: 0, fixedCostTotal: 0, monthlySavingsTarget: 0, sharedMonthlyBudget: 0,
+  });
+
+  useEffect(() => {
+    let active = true;
+    void getSettings()
+      .then((s) => { if (active) setSettings(toDomainSettings(s)); })
+      .catch(() => { /* use defaults */ });
+    return () => { active = false; };
+  }, []);
+
+  // Shared category budgets
   const [budgets, setBudgets] = useState<Budget[]>([]);
 
   const loadBudgets = useCallback(async () => {
@@ -66,7 +87,7 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
 
   useEffect(() => { loadBudgets(); }, [loadBudgets]);
 
-  const budgetStatuses = useMemo(() => budgets.map((b) => categoryRemaining(b, shared)), [budgets, shared]);
+  const budgetStatuses = useMemo(() => budgets.map((b) => categoryRemaining(b, shared, 'shared')), [budgets, shared]);
 
   const recent = useMemo(
     () => transactions.filter((t) => (t.wallet || 'personal') === 'shared' && t.amount < 0).slice(0, 10),
@@ -305,18 +326,17 @@ export function SharedScreen({ transactions, selectedMonth, onRefresh }: SharedS
 
       {/* Shared budget remaining hero */}
       {(() => {
-        const budgetTotal = budgets.reduce((s, b) => s + b.limitAmount, 0);
+        const budgetTotal = settings.sharedMonthlyBudget;
         const sharedRemaining = budgetTotal - expenses;
-        const hasBudgets = budgets.length > 0;
+        const hasBudget = budgetTotal > 0;
         return (
-          <div className={`shared-total-card ${hasBudgets && sharedRemaining < 0 ? 'overspent' : ''}`}>
-            <div className="shared-label">{hasBudgets ? '共有予算の残り' : '共有支出合計'}</div>
-            <div className="shared-amount">{formatJPY(hasBudgets ? sharedRemaining : expenses)}</div>
+          <div className={`shared-total-card ${hasBudget && sharedRemaining < 0 ? 'overspent' : ''}`}>
+            <div className="shared-label">{hasBudget ? '共有予算の残り' : '共有支出合計'}</div>
+            <div className="shared-amount">{formatJPY(hasBudget ? sharedRemaining : expenses)}</div>
             <div className="shared-per-person">
-              {hasBudgets
-                ? `支出 ${formatJPY(expenses)} / 予算 ${formatJPY(budgetTotal)}`
-                : `一人あたり ${formatJPY(Math.round(expenses / 2))}`
-              }
+              {hasBudget
+                ? `一人あたり残り ${formatJPY(Math.round(sharedRemaining / 2))} / 支出 ${formatJPY(expenses)}`
+                : `一人あたり支出 ${formatJPY(Math.round(expenses / 2))}`}
             </div>
           </div>
         );

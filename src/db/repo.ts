@@ -8,6 +8,7 @@ import { db, ensureDefaults, type DbTransaction, type DbSettings, type DbBudget,
 import { categorizeWithLearning } from '../api/categorizationAdapter';
 import { deriveMerchantKey } from '../api/merchantKey';
 import { lastNMonths } from '../domain/computations';
+import type { Wallet } from '../domain/types';
 
 // Re-export types for consumers (match client.ts shape)
 export type Transaction = DbTransaction;
@@ -16,7 +17,7 @@ export type TransactionInput = {
   amount: number;
   category: string;
   account: string;
-  wallet?: string;
+  wallet?: Wallet;
   source?: string;
   description: string;
   hash: string;
@@ -46,10 +47,17 @@ function generateId(): string {
 
 // --- Transactions ---
 
-export async function getTransactions(month?: string): Promise<Transaction[]> {
+export async function getTransactions(month?: string, wallet?: Wallet): Promise<Transaction[]> {
   let txns: Transaction[];
-  if (month) {
-    // Use indexed monthKey for fast month filtering
+  if (month && wallet) {
+    // Use indexed compound lookup so wallet-scoped screens never mix personal/shared rows.
+    txns = await db.transactions
+      .where('[monthKey+wallet]')
+      .equals([month, wallet])
+      .reverse()
+      .sortBy('date');
+  } else if (month) {
+    // Use indexed monthKey for fast month filtering, then normalize legacy rows with missing wallet.
     txns = await db.transactions
       .where('monthKey')
       .equals(month)
@@ -58,7 +66,7 @@ export async function getTransactions(month?: string): Promise<Transaction[]> {
   } else {
     txns = await db.transactions.orderBy('date').reverse().toArray();
   }
-  return txns;
+  return wallet ? txns.filter((txn) => (txn.wallet || 'personal') === wallet) : txns;
 }
 
 export async function createTransaction(data: TransactionInput): Promise<Transaction> {
@@ -188,11 +196,12 @@ export async function getSettings(): Promise<ApiSettings> {
     monthly_income: row!.monthly_income,
     fixed_cost_total: row!.fixed_cost_total,
     monthly_savings_target: row!.monthly_savings_target,
+    shared_monthly_budget: row!.shared_monthly_budget || 0,
   };
 }
 
 export async function updateSettings(data: ApiSettings): Promise<ApiSettings> {
-  await db.settings.put({ id: 1, ...data });
+  await db.settings.put({ id: 1, ...data, shared_monthly_budget: data.shared_monthly_budget || 0 });
   return data;
 }
 
@@ -205,7 +214,7 @@ export async function getMonthlySpendingTrend(monthCount: number = 6): Promise<M
   );
 
   const months = lastNMonths(monthCount);
-  const monthlyTransactions = await Promise.all(months.map((month) => getTransactions(month)));
+  const monthlyTransactions = await Promise.all(months.map((month) => getTransactions(month, 'personal')));
 
   return months.map((month, index) => {
     const spending = monthlyTransactions[index]
@@ -218,7 +227,7 @@ export async function getMonthlySpendingTrend(monthCount: number = 6): Promise<M
 
 // --- Budgets ---
 
-export async function getBudgets(month?: string, wallet?: string): Promise<ApiBudget[]> {
+export async function getBudgets(month?: string, wallet?: Wallet): Promise<ApiBudget[]> {
   if (month && wallet) {
     return db.budgets
       .where('[month+wallet]')
@@ -268,7 +277,7 @@ export async function deleteBudget(id: string): Promise<void> {
  */
 export async function copyBudgetsFromPrevMonth(
   targetMonth: string,
-  wallet: string,
+  wallet: Wallet,
 ): Promise<{ created: number; updated: number }> {
   // Compute previous month
   const [y, m] = targetMonth.split('-').map(Number);
