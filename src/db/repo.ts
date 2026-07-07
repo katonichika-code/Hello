@@ -4,7 +4,7 @@
  * Every function here has the same return type as the HTTP version it replaces,
  * enabling a 1:1 swap in UI components.
  */
-import { db, ensureDefaults, type DbTransaction, type DbSettings, type DbBudget, type DbMerchantMapping } from './database';
+import { db, ensureDefaults, type DbTransaction, type DbSettings, type DbBudget, type DbMerchantMapping, type QuickEntryRecentSnapshot } from './database';
 import { categorizeWithLearning } from '../api/categorizationAdapter';
 import { deriveMerchantKey } from '../api/merchantKey';
 import { lastNMonths } from '../domain/computations';
@@ -27,6 +27,7 @@ export type TransactionInput = {
   isPending?: number;
 };
 export type ApiSettings = Omit<DbSettings, 'id'>;
+export type QuickEntryRecent = Omit<QuickEntryRecentSnapshot, 'updated_at'>;
 export type ApiBudget = DbBudget;
 export type ApiMerchantMapping = DbMerchantMapping;
 export type BulkResult = { inserted: number; skipped: number };
@@ -197,8 +198,50 @@ export async function getSettings(): Promise<ApiSettings> {
     fixed_cost_total: row!.fixed_cost_total,
     monthly_savings_target: row!.monthly_savings_target,
     shared_monthly_budget: row!.shared_monthly_budget || 0,
+    quick_entry_recents: row!.quick_entry_recents || [],
   };
 }
+
+export async function getQuickEntryRecents(): Promise<QuickEntryRecent[]> {
+  await ensureDefaults();
+  const row = await db.settings.get(1);
+  return (row?.quick_entry_recents || [])
+    .slice(0, 6)
+    .map((item) => ({
+      amount: item.amount,
+      category: item.category,
+      description: item.description,
+      account: item.account,
+      wallet: item.wallet,
+    }));
+}
+
+export async function recordQuickEntryRecent(recent: QuickEntryRecent): Promise<QuickEntryRecent[]> {
+  await ensureDefaults();
+  const row = await db.settings.get(1);
+  const updatedAt = new Date().toISOString();
+  const sameCombo = (item: QuickEntryRecentSnapshot) => (
+    item.amount === recent.amount
+    && item.category === recent.category
+    && item.description === recent.description
+    && item.account === recent.account
+    && item.wallet === recent.wallet
+  );
+  const quick_entry_recents: QuickEntryRecentSnapshot[] = [
+    { ...recent, updated_at: updatedAt },
+    ...(row?.quick_entry_recents || []).filter((item) => !sameCombo(item)),
+  ].slice(0, 6);
+
+  await db.settings.update(1, { quick_entry_recents });
+  return quick_entry_recents.map((item) => ({
+    amount: item.amount,
+    category: item.category,
+    description: item.description,
+    account: item.account,
+    wallet: item.wallet,
+  }));
+}
+
 
 export async function updateSettings(data: ApiSettings): Promise<ApiSettings> {
   await db.settings.put({ id: 1, ...data, shared_monthly_budget: data.shared_monthly_budget || 0 });
