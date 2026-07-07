@@ -39,6 +39,16 @@ export interface DbSettings {
   fixed_cost_total: number;
   monthly_savings_target: number;
   shared_monthly_budget?: number;
+  quick_entry_recents?: QuickEntryRecentSnapshot[];
+}
+
+export interface QuickEntryRecentSnapshot {
+  amount: number;
+  category: string;
+  description: string;
+  account: string;
+  wallet: Wallet;
+  updated_at: string;
 }
 
 export interface DbBudget {
