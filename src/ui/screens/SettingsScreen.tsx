@@ -134,7 +134,10 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
       );
 
       setGmailStatus(result);
-      setGmailWarnings(result.errors);
+      setGmailWarnings([
+        ...result.errors,
+        ...result.parseFailures.map((failure) => `取り込めなかったメール: ${failure.subject || '(件名なし)'} (${failure.reason})`),
+      ]);
       setGmailProgress(`同期完了：新規${result.newTransactions}件、重複${result.duplicatesSkipped}件`);
       await loadSyncMeta();
       await onRefresh();
@@ -170,7 +173,7 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
           {gmailProgress && <div className="gmail-sync-progress">{gmailProgress}</div>}
           {gmailStatus && (
             <div className="gmail-sync-meta">
-              新規 {gmailStatus.newTransactions}件 / 重複スキップ {gmailStatus.duplicatesSkipped}件
+              新規 {gmailStatus.newTransactions}件 / 重複スキップ {gmailStatus.duplicatesSkipped}件 / 取り込めなかったメール {gmailStatus.parseFailures.length}件
             </div>
           )}
           <div className="settings-inline-actions">

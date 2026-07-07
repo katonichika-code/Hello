@@ -73,6 +73,7 @@ export interface DbGmailSync {
   email: string;
   last_sync_at: string;
   last_history_id: string;
+  last_parse_failure_count?: number;
 }
 
 // --- Database class ---
@@ -136,6 +137,21 @@ class KakeiboDB extends Dexie {
       return tx.table('transactions').toCollection().modify((txn: DbTransaction) => {
         if (txn.isPending === undefined) {
           txn.isPending = 0;
+        }
+      });
+    });
+
+    // v5 — add Gmail parse failure count metadata (backup/restore UI exists in Settings and Analytics)
+    this.version(5).stores({
+      transactions: 'id, date, monthKey, [monthKey+wallet], &hash, category, wallet, merchant_key, category_source, isPending',
+      settings: 'id',
+      budgets: 'id, [month+wallet+category], [month+wallet], month, wallet, pinned, display_order',
+      merchant_map: 'merchant_key',
+      gmail_sync: 'id',
+    }).upgrade((tx) => {
+      return tx.table('gmail_sync').toCollection().modify((sync: DbGmailSync) => {
+        if (sync.last_parse_failure_count === undefined) {
+          sync.last_parse_failure_count = 0;
         }
       });
     });
