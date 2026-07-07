@@ -11,6 +11,7 @@ import type {
   CategoryTotal,
   BudgetStatus,
   DangerCategory,
+  Wallet,
 } from './types';
 
 /** Filter transactions to a single month (YYYY-MM) */
@@ -24,13 +25,13 @@ export function expensesOnly(txns: Transaction[]): Transaction[] {
 }
 
 /** Filter to a specific wallet */
-export function forWallet(txns: Transaction[], wallet: string): Transaction[] {
-  return txns.filter((t) => t.wallet === wallet);
+export function forWallet(txns: Transaction[], wallet: Wallet): Transaction[] {
+  return txns.filter((t) => (t.wallet || 'personal') === wallet);
 }
 
 /** Sum of absolute expense amounts */
-export function totalExpenses(txns: Transaction[]): number {
-  return expensesOnly(txns).reduce((sum, t) => sum + Math.abs(t.amount), 0);
+export function totalExpenses(txns: Transaction[], wallet: Wallet): number {
+  return expensesOnly(forWallet(txns, wallet)).reduce((sum, t) => sum + Math.abs(t.amount), 0);
 }
 
 /**
@@ -44,8 +45,9 @@ export function totalExpenses(txns: Transaction[]): number {
 export function remainingFreeToSpend(
   settings: Settings,
   monthTxns: Transaction[],
+  wallet: Wallet,
 ): number {
-  const spent = totalExpenses(monthTxns);
+  const spent = totalExpenses(monthTxns, wallet);
   return settings.monthlyIncome - settings.fixedCostTotal - settings.monthlySavingsTarget - spent;
 }
 
@@ -56,8 +58,9 @@ export function remainingFreeToSpend(
 export function categoryRemaining(
   budget: Budget,
   monthTxns: Transaction[],
+  wallet: Wallet,
 ): BudgetStatus {
-  const spent = expensesOnly(monthTxns)
+  const spent = expensesOnly(forWallet(monthTxns, wallet))
     .filter((t) => t.category === budget.category)
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
@@ -70,9 +73,9 @@ export function categoryRemaining(
 }
 
 /** Breakdown of spending by category */
-export function categoryBreakdown(monthTxns: Transaction[]): CategoryTotal[] {
+export function categoryBreakdown(monthTxns: Transaction[], wallet: Wallet): CategoryTotal[] {
   const map = new Map<string, number>();
-  for (const t of expensesOnly(monthTxns)) {
+  for (const t of expensesOnly(forWallet(monthTxns, wallet))) {
     const abs = Math.abs(t.amount);
     map.set(t.category, (map.get(t.category) || 0) + abs);
   }
@@ -147,12 +150,12 @@ export function monthSummary(
   monthTxns: Transaction[],
   month: Month,
 ): MonthSummary {
-  const spent = totalExpenses(monthTxns);
+  const spent = totalExpenses(monthTxns, 'personal');
   return {
     month,
     totalExpenses: spent,
-    remainingFreeToSpend: remainingFreeToSpend(settings, monthTxns),
-    categoryBreakdown: categoryBreakdown(monthTxns),
+    remainingFreeToSpend: remainingFreeToSpend(settings, monthTxns, 'personal'),
+    categoryBreakdown: categoryBreakdown(monthTxns, 'personal'),
   };
 }
 
@@ -168,8 +171,8 @@ export function projectedMonthEnd(
   const dayOfMonth = today.getDate();
   if (dayOfMonth === 0) return null;
 
-  const spent = totalExpenses(monthTxns);
-  if (spent === 0) return remainingFreeToSpend(settings, monthTxns);
+  const spent = totalExpenses(monthTxns, 'personal');
+  if (spent === 0) return remainingFreeToSpend(settings, monthTxns, 'personal');
 
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   const dailyRate = spent / dayOfMonth;

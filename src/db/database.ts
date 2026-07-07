@@ -11,6 +11,7 @@
  * All data persists in the browser — no server required.
  */
 import Dexie, { type Table } from 'dexie';
+import type { Wallet } from '../domain/types';
 
 // --- Table interfaces ---
 
@@ -21,7 +22,7 @@ export interface DbTransaction {
   amount: number;       // JPY; expenses negative
   category: string;     // allow 'Uncategorized'
   account: string;      // 'card' | 'cash' — keeps Sankey semantics
-  wallet: string;       // 'personal' (future: multi-wallet)
+  wallet?: Wallet;      // missing legacy rows are treated as 'personal'
   source: string;       // 'manual' | 'csv'
   description: string;
   hash: string;         // SHA-256 for dedup (unique)
@@ -37,6 +38,7 @@ export interface DbSettings {
   monthly_income: number;
   fixed_cost_total: number;
   monthly_savings_target: number;
+  shared_monthly_budget?: number;
 }
 
 export interface DbBudget {
@@ -46,7 +48,7 @@ export interface DbBudget {
   limit_amount: number;
   pinned: number; // 0 or 1
   display_order: number;
-  wallet: string; // 'personal' | 'shared'
+  wallet: Wallet; // 'personal' | 'shared'
 }
 
 export interface DbMerchantMapping {
@@ -151,6 +153,7 @@ export async function ensureDefaults(): Promise<void> {
       monthly_income: 0,
       fixed_cost_total: 0,
       monthly_savings_target: 0,
+      shared_monthly_budget: 0,
     });
   }
 }

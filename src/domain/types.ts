@@ -3,11 +3,14 @@
  * Pure data — no React, no DB, no IO.
  */
 
+export type Wallet = 'personal' | 'shared';
+
 /** User-configurable monthly parameters */
 export interface Settings {
   monthlyIncome: number;          // JPY
   fixedCostTotal: number;         // JPY (rent, utilities, loans — total)
   monthlySavingsTarget: number;   // JPY monthly savings goal
+  sharedMonthlyBudget: number;     // JPY shared wallet monthly budget
 }
 
 /** Per-category budget for a specific month */
@@ -18,7 +21,7 @@ export interface Budget {
   limitAmount: number;         // JPY budget limit
   pinned: boolean;             // shown on Home
   displayOrder: number;        // sort order on Home
-  wallet: string;              // 'personal' | 'shared'
+  wallet: Wallet;              // 'personal' | 'shared'
 }
 
 /** Canonical transaction (superset of legacy fields) */
@@ -28,7 +31,7 @@ export interface Transaction {
   amount: number;              // negative = expense, positive = income
   category: string;
   account: string;             // "card" | "cash"
-  wallet: string;              // "personal" | "shared"
+  wallet?: Wallet;             // "personal" | "shared"; missing legacy rows are personal
   source: string;              // "manual" | "csv"
   description: string;
   hash: string;
@@ -73,4 +76,5 @@ export const DEFAULT_SETTINGS: Settings = {
   monthlyIncome: 0,
   fixedCostTotal: 0,
   monthlySavingsTarget: 0,
+  sharedMonthlyBudget: 0,
 };

@@ -65,8 +65,8 @@ export function SpendingPaceChart({ selectedMonth, spendableAmount }: SpendingPa
       const innerHeight = height - margin.top - margin.bottom;
 
       const [currentTxns, prevTxns] = await Promise.all([
-        getTransactions(selectedMonth),
-        getTransactions(toPreviousMonth(selectedMonth)),
+        getTransactions(selectedMonth, 'personal'),
+        getTransactions(toPreviousMonth(selectedMonth), 'personal'),
       ]);
 
       if (cancelled) return;

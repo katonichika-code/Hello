@@ -65,6 +65,7 @@ const baseSettings: Settings = {
   monthlyIncome: 300000,
   fixedCostTotal: 100000,
   monthlySavingsTarget: 50000,
+  sharedMonthlyBudget: 60000,
 };
 
 // --- Tests ---
@@ -72,7 +73,7 @@ const baseSettings: Settings = {
 console.log('\n=== Domain Computation Tests ===\n');
 
 test('remainingFreeToSpend: no expenses = full disposable', () => {
-  const r = remainingFreeToSpend(baseSettings, []);
+  const r = remainingFreeToSpend(baseSettings, [], 'personal');
   // 300000 - 100000 - 50000 - 0 = 150000
   assertEq(r, 150000, 'remaining');
 });
@@ -82,7 +83,7 @@ test('remainingFreeToSpend: with expenses', () => {
     makeTxn({ amount: -10000 }),
     makeTxn({ id: '2', amount: -5000 }),
   ];
-  const r = remainingFreeToSpend(baseSettings, txns);
+  const r = remainingFreeToSpend(baseSettings, txns, 'personal');
   // 300000 - 100000 - 50000 - 15000 = 135000
   assertEq(r, 135000, 'remaining');
 });
@@ -92,22 +93,44 @@ test('remainingFreeToSpend: ignores positive amounts (income)', () => {
     makeTxn({ amount: -10000 }),
     makeTxn({ id: '2', amount: 5000 }), // income — not an expense
   ];
-  const r = remainingFreeToSpend(baseSettings, txns);
+  const r = remainingFreeToSpend(baseSettings, txns, 'personal');
   // 300000 - 100000 - 50000 - 10000 = 140000
   assertEq(r, 140000, 'remaining');
 });
 
 test('remainingFreeToSpend: can go negative (overspent)', () => {
   const txns = [makeTxn({ amount: -200000 })];
-  const r = remainingFreeToSpend(baseSettings, txns);
+  const r = remainingFreeToSpend(baseSettings, txns, 'personal');
   // 300000 - 100000 - 50000 - 200000 = -50000
   assertEq(r, -50000, 'remaining');
 });
 
 test('remainingFreeToSpend: zero settings = negative of spending', () => {
-  const zero: Settings = { monthlyIncome: 0, fixedCostTotal: 0, monthlySavingsTarget: 0 };
+  const zero: Settings = { monthlyIncome: 0, fixedCostTotal: 0, monthlySavingsTarget: 0, sharedMonthlyBudget: 0 };
   const txns = [makeTxn({ amount: -5000 })];
-  assertEq(remainingFreeToSpend(zero, txns), -5000, 'remaining');
+  assertEq(remainingFreeToSpend(zero, txns, 'personal'), -5000, 'remaining');
+});
+
+
+test('wallet isolation: personal Definition A excludes every shared yen', () => {
+  const txns = [
+    makeTxn({ id: 'personal-food', amount: -10000, wallet: 'personal' }),
+    makeTxn({ id: 'shared-date', amount: -999999, wallet: 'shared', category: '娯楽' }),
+  ];
+  assertEq(totalExpenses(txns, 'personal'), 10000, 'personal expenses');
+  assertEq(remainingFreeToSpend(baseSettings, txns, 'personal'), 140000, 'personal remaining');
+});
+
+test('wallet isolation: shared aggregate excludes every personal yen and treats missing wallet as personal', () => {
+  const txns = [
+    makeTxn({ id: 'legacy-personal', amount: -777777, wallet: undefined }),
+    makeTxn({ id: 'shared-food', amount: -12000, wallet: 'shared', category: '食費' }),
+    makeTxn({ id: 'shared-daily', amount: -3000, wallet: 'shared', category: '日用品' }),
+  ];
+  const breakdown = categoryBreakdown(txns, 'shared');
+  assertEq(totalExpenses(txns, 'shared'), 15000, 'shared expenses');
+  assertEq(breakdown.length, 2, 'shared category count');
+  assertEq(forWallet(txns, 'personal').length, 1, 'legacy personal count');
 });
 
 test('categoryRemaining: basic', () => {
@@ -119,7 +142,7 @@ test('categoryRemaining: basic', () => {
     makeTxn({ amount: -8000, category: '食費' }),
     makeTxn({ id: '2', amount: -3000, category: '交通費' }), // different category
   ];
-  const status = categoryRemaining(budget, txns);
+  const status = categoryRemaining(budget, txns, 'personal');
   assertEq(status.budgeted, 30000, 'budgeted');
   assertEq(status.spent, 8000, 'spent');
   assertEq(status.remaining, 22000, 'remaining');
@@ -131,7 +154,7 @@ test('categoryRemaining: overspent', () => {
     limitAmount: 5000, pinned: true, displayOrder: 0, wallet: 'personal',
   };
   const txns = [makeTxn({ amount: -8000, category: '食費' })];
-  const status = categoryRemaining(budget, txns);
+  const status = categoryRemaining(budget, txns, 'personal');
   assertEq(status.remaining, -3000, 'remaining');
 });
 
@@ -142,7 +165,7 @@ test('categoryBreakdown: groups and sorts by amount', () => {
     makeTxn({ id: '3', amount: -10000, category: '交通費' }),
     makeTxn({ id: '4', amount: -2000, category: '日用品' }),
   ];
-  const bd = categoryBreakdown(txns);
+  const bd = categoryBreakdown(txns, 'personal');
   assertEq(bd.length, 3, 'category count');
   assertEq(bd[0].category, '交通費', 'first category');
   assertEq(bd[0].spent, 10000, 'first spent');
@@ -190,7 +213,7 @@ test('totalExpenses: sums absolute values of negatives only', () => {
     makeTxn({ id: '2', amount: 3000 }), // income ignored
     makeTxn({ id: '3', amount: -2000 }),
   ];
-  assertEq(totalExpenses(txns), 7000, 'total');
+  assertEq(totalExpenses(txns, 'personal'), 7000, 'total');
 });
 
 test('projectedMonthEnd: linear projection', () => {

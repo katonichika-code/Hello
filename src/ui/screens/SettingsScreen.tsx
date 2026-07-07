@@ -54,6 +54,7 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
   const [monthlyIncome, setMonthlyIncome] = useState('');
   const [fixedCostTotal, setFixedCostTotal] = useState('');
   const [monthlySavingsTarget, setMonthlySavingsTarget] = useState('');
+  const [sharedMonthlyBudget, setSharedMonthlyBudget] = useState('');
   const [storagePersisted, setStoragePersisted] = useState<boolean | null>(null);
 
   const [gmailConnected, setGmailConnected] = useState(isConnected());
@@ -69,6 +70,7 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
     setMonthlyIncome(String(s.monthly_income || ''));
     setFixedCostTotal(String(s.fixed_cost_total || ''));
     setMonthlySavingsTarget(String(s.monthly_savings_target || ''));
+    setSharedMonthlyBudget(String(s.shared_monthly_budget || ''));
   }, []);
 
   const loadSyncMeta = useCallback(async () => {
@@ -94,6 +96,7 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
       monthly_income: parseInt(monthlyIncome, 10) || 0,
       fixed_cost_total: parseInt(fixedCostTotal, 10) || 0,
       monthly_savings_target: parseInt(monthlySavingsTarget, 10) || 0,
+      shared_monthly_budget: parseInt(sharedMonthlyBudget, 10) || 0,
     });
     await onRefresh();
   };
@@ -221,6 +224,10 @@ export function SettingsScreen({ onClose, onRefresh, onGoAnalytics }: SettingsSc
           <label>
             貯蓄目標 (円)
             <input type="number" inputMode="numeric" value={monthlySavingsTarget} onChange={(e) => setMonthlySavingsTarget(e.target.value)} />
+          </label>
+          <label>
+            共有月予算 (円)
+            <input type="number" inputMode="numeric" value={sharedMonthlyBudget} onChange={(e) => setSharedMonthlyBudget(e.target.value)} />
           </label>
           <button className="btn-save" type="button" onClick={handleSaveSettings}>保存</button>
         </section>

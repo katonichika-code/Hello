@@ -28,6 +28,7 @@ function toDomainSettings(api: ApiSettings): Settings {
     monthlyIncome: api.monthly_income,
     fixedCostTotal: api.fixed_cost_total,
     monthlySavingsTarget: api.monthly_savings_target,
+    sharedMonthlyBudget: api.shared_monthly_budget || 0,
   };
 }
 
@@ -45,7 +46,7 @@ function toDomainBudget(api: ApiBudget): Budget {
 
 export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScreenProps) {
   const [settings, setSettings] = useState<Settings>({
-    monthlyIncome: 0, fixedCostTotal: 0, monthlySavingsTarget: 0,
+    monthlyIncome: 0, fixedCostTotal: 0, monthlySavingsTarget: 0, sharedMonthlyBudget: 0,
   });
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [entryOpen, setEntryOpen] = useState(false);
@@ -93,19 +94,19 @@ export function HomeScreen({ transactions, selectedMonth, onRefresh }: HomeScree
     () => settings.monthlyIncome - settings.fixedCostTotal - settings.monthlySavingsTarget,
     [settings],
   );
-  const remaining = useMemo(() => remainingFreeToSpend(settings, domainTxns), [settings, domainTxns]);
-  const expenses = useMemo(() => totalExpenses(domainTxns), [domainTxns]);
+  const remaining = useMemo(() => remainingFreeToSpend(settings, domainTxns, 'personal'), [settings, domainTxns]);
+  const expenses = useMemo(() => totalExpenses(domainTxns, 'personal'), [domainTxns]);
   const today = useMemo(() => new Date(), []);
   const monthEnd = useMemo(() => new Date(today.getFullYear(), today.getMonth() + 1, 0), [today]);
   const daysRemaining = useMemo(() => (monthEnd.getDate() - today.getDate() + 1), [monthEnd, today]);
   const dailyAmount = useMemo(() => dailyAllowance(remaining, today, monthEnd), [remaining, today, monthEnd]);
   const dangerCategoryNames = useMemo(
-    () => dangerCategories(budgets, categoryBreakdown(domainTxns), today).map((c) => c.category),
+    () => dangerCategories(budgets, categoryBreakdown(domainTxns, 'personal'), today).map((c) => c.category),
     [budgets, domainTxns, today],
   );
-  const budgetStatuses = useMemo(() => budgets.map((b) => categoryRemaining(b, domainTxns)), [budgets, domainTxns]);
+  const budgetStatuses = useMemo(() => budgets.map((b) => categoryRemaining(b, domainTxns, 'personal')), [budgets, domainTxns]);
 
-  const recent = useMemo(() => transactions.slice(0, 5), [transactions]);
+  const recent = useMemo(() => transactions.filter((t) => (t.wallet || 'personal') === 'personal').slice(0, 5), [transactions]);
 
   const formatJPY = useMemo(() => {
     const fmt = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' });
