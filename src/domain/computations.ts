@@ -10,6 +10,7 @@ import type {
   MonthSummary,
   CategoryTotal,
   BudgetStatus,
+  DangerCategory,
 } from './types';
 
 /** Filter transactions to a single month (YYYY-MM) */
@@ -78,6 +79,66 @@ export function categoryBreakdown(monthTxns: Transaction[]): CategoryTotal[] {
   return Array.from(map.entries())
     .map(([category, spent]) => ({ category, spent }))
     .sort((a, b) => b.spent - a.spent);
+}
+
+
+/**
+ * Daily allowance from today through month end, inclusive.
+ * Returns the mathematical daily amount even when remaining is negative.
+ */
+export function dailyAllowance(remaining: number, today: Date, monthEnd: Date): number {
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const end = new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate()).getTime();
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const remainingDaysInclusive = Math.max(1, Math.floor((end - start) / msPerDay) + 1);
+
+  return Math.floor(remaining / remainingDaysInclusive);
+}
+
+/**
+ * Categories whose spending pace is ahead of elapsed-month pace.
+ * Budgeted categories compare spend/budget against month progress.
+ * Unbudgeted categories fall back to spend/median-unbudgeted-spend.
+ */
+export function dangerCategories(
+  budgets: Budget[],
+  monthSpendByCategory: CategoryTotal[],
+  today: Date = new Date(),
+): DangerCategory[] {
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const monthProgressRatio = Math.min(Math.max(today.getDate() / daysInMonth, 0), 1);
+  const budgetByCategory = new Map(budgets.map((b) => [b.category, b]));
+  const unbudgetedSpend = monthSpendByCategory
+    .filter((c) => !budgetByCategory.has(c.category) && c.spent > 0)
+    .map((c) => c.spent)
+    .sort((a, b) => a - b);
+  const median = unbudgetedSpend.length === 0
+    ? 0
+    : unbudgetedSpend[Math.floor((unbudgetedSpend.length - 1) / 2)];
+
+  return monthSpendByCategory
+    .map((categorySpend): DangerCategory | null => {
+      const budget = budgetByCategory.get(categorySpend.category);
+      const denominator = budget ? budget.limitAmount : median;
+      if (denominator <= 0 || categorySpend.spent <= 0) return null;
+
+      const spendRatio = categorySpend.spent / denominator;
+      const severity = spendRatio - monthProgressRatio;
+      if (severity <= 0) return null;
+
+      return {
+        category: categorySpend.category,
+        spent: categorySpend.spent,
+        budgeted: budget ? budget.limitAmount : null,
+        spendRatio,
+        monthProgressRatio,
+        severity,
+        reason: budget ? 'budget' : 'median',
+      };
+    })
+    .filter((c): c is DangerCategory => c !== null)
+    .sort((a, b) => b.severity - a.severity)
+    .slice(0, 2);
 }
 
 /** Full month summary */
