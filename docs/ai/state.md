@@ -1,51 +1,38 @@
-# AI State — Prompt 6 Gmail configuration hardening
+# AI State — Prompt 7 CSV parser registry化
 
 ## 読んだファイル
 - `CLAUDE.md`
-- `.gitignore`
-- `.env.example`
-- `README.md`
-- `vite.config.ts`
-- `src/api/gmail/auth.ts`
-- `src/api/gmail/fetch.ts`
-- `src/api/gmail/index.ts`
-- `src/api/gmail/providers/vpass.ts`
-- `src/api/gmail/types.ts`
-- `src/api/gmailSync.ts`
-- `src/db/database.ts`
-- `src/db/repo.ts`
-- `src/ui/screens/SettingsScreen.tsx`
-- `src/ui/components/OnboardingModal.tsx`
-- `src/components/BackupRestore.tsx`（既存導線の存在確認は前回 state と実装検索結果に基づく）
 - `package.json`
+- `src/api/csvParser.ts`
+- `src/scripts/csv-check.ts`
+- `src/components/CsvImport.tsx`
+- `docs/ai/state.md`
+- 既存 fixture 確認: `find` で `*.csv` / `*fixture*` を探索し、CSV fixture は未存在だった。
 
 ## 確認した事実
-- 変更前 grep で OAuth Client ID 文字列は `src/api/gmail/auth.ts` に、個人メールアドレスは `src/api/gmail/index.ts` に、Gmail 検索クエリは `src/api/gmail/fetch.ts` に存在した。
-- Gmail API scope は `src/api/gmail/auth.ts` の `GMAIL_READONLY_SCOPE` で `https://www.googleapis.com/auth/gmail.readonly` のみ。
-- Dexie schema の index/store 定義は変更していないが、`settings` row に `gmail_search_query` プロパティを追加してアプリ設定として保存するようにした。
-- Backup/Restore 導線は `SettingsScreen` と `AnalyticsScreen` から `BackupRestore` として利用されているため、settings データ変更前のバックアップ導線確認条件を満たす。
-- `.env.example` を追加し、`.gitignore` は `.env` / `.env.*` を無視しつつ `.env.example` を追跡対象にしている。
+- 既存 CSV parser は `src/api/csvParser.ts` に Format A（`date,amount,description` header）と Format B（SMBC系カード明細、2行目以降が `YYYY/MM/DD`）の検出・parse ロジックが同居していた。
+- CSV import UI は `decodeFileContent` と `parseCsvText` を利用し、取り込み時に `Math.abs(row.amount)` を hash 生成へ渡してから保存金額を負数化していたため、互換 API では `ParsedTransaction.amount` を従来通り正数で返す必要がある。
+- Hash 生成実装自体には手を入れていない。CSV parser registry 内部の `NormalizedTx.amount` は負数（支出）に正規化し、互換層の `parseCsvText` で正数へ戻して既存 UI/hash 経路を維持した。
+- Dexie schema は変更していないため、バックアップ導線確認の停止条件には該当しない。
+- `npm run csvcheck` の before/after 出力 diff は空だった。
 - `npm run build` と `npm run lint` は成功した。
 
 ## 重要な仮説
-- Gmail 検索条件（送信元や件名）はユーザー環境に依存するため、provider 側の送信元・件名一致条件ではなく、設定保存された Gmail 検索クエリで絞り込む方針が今回の目的に合う。
-- 既存ユーザーの settings row に `gmail_search_query` が存在しない場合は repo layer のデフォルト値で補完すれば、schema version bump なしで互換性を維持できる。
+- Prompt 8 以降で provider 選択 UI を追加する前提のため、今回の互換 `parseCsvText` は同点・低 confidence の registry 結果を既存通り error として返すだけに留めるのが「UIプレビューの機能拡張はしない」境界に合う。
+- Registry 内部では `NormalizedTx` に `provider` と `raw` を持たせるが、現行 UI へ渡す `ParsedTransaction` からは除外することで既存挙動を変えない。
 
 ## 決定
-- OAuth Client ID は `import.meta.env.VITE_GOOGLE_CLIENT_ID` から読み込む。未設定時は Gmail 同期を無効化し、他機能は動作させる。
-- Gmail 検索クエリは `settings.gmail_search_query` として保存し、設定画面から編集可能にした。
-- 個人メールアドレスは同期メタデータに保存しないよう空文字へ変更した。
-- OAuth フロー自体と Gmail readonly scope は変更しない。
-- git 履歴の書き換えは実行しない。過去コミットに個人メールアドレスが残る可能性があるため、人間がリポジトリ再作成または filter-repo 等で履歴除去するか判断する必要がある。
+- `src/api/csv/registry.ts` に `CsvProvider` / `NormalizedTx` / provider 選択 / CSV row parse / encoding decode / 日付・金額正規化ユーティリティを集約した。
+- `src/api/csv/providers/generic.ts` に標準CSV provider、`src/api/csv/providers/smbcCard.ts` にSMBCカード明細 provider を移植した。
+- `src/api/csvParser.ts` は既存 public API 互換の薄い facade とし、`detectFormat` / `parseCsvText` / `decodeFileContent` / `toTransactionInputs` を維持した。
+- 既存サンプルを `src/fixtures/csv/format-a.csv` と `src/fixtures/csv/format-b-smbc-card.csv` に fixture 化し、`src/scripts/csv-check.ts` は fixture と registry 経由の検証に変更した。
 
 ## 次にやること
-- 人間が Google Cloud Console で OAuth Client ID を作成・制限し、デプロイ先の環境変数 `VITE_GOOGLE_CLIENT_ID` に設定する。
-- 必要に応じて設定画面で Gmail 検索クエリを実メール環境に合わせて調整する。
+- Prompt 8 以降で、registry の `needs-user-selection` 結果を UI で選択可能にするか検討する。
+- 実ユーザー提供のカード明細CSVがあれば、今回追加した fixture と同じ形式でスナップショット検証を追加する。
 
 ## ブロッカー
-- 現在の作業ブランチ上のコード変更にはブロッカーなし。
-- 公開済み git 履歴に個人メールアドレスが残っている場合、履歴除去は人間判断が必要。
+- 現在の作業範囲にブロッカーなし。
 
 ## 人間確認事項
-- 公開リポジトリで過去履歴に残った個人メールアドレスを消すため、リポジトリ作り直しまたは `git filter-repo` 等の履歴書き換えを行うか判断してください。
-- `.env.example` のコメント内容と、設定画面で編集する Gmail 検索クエリの初期値が運用に合っているか確認してください。
+- Provider ID は既存互換のため `A` / `B` を維持している。将来 UI 表示やデータ保存でより説明的な ID（例: `generic`, `smbc-card`）へ移行するか確認してください。
