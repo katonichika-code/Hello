@@ -36,3 +36,40 @@
 
 ## 人間確認事項
 - Provider ID は既存互換のため `A` / `B` を維持している。将来 UI 表示やデータ保存でより説明的な ID（例: `generic`, `smbc-card`）へ移行するか確認してください。
+
+---
+
+# AI State — Prompt 24 CSV取り込みの新旧経路の一本化
+
+## 読んだファイル
+- `src/components/CsvImport.tsx`
+- `src/api/csvParser.ts`
+- `src/api/csv/registry.ts`
+- `src/api/csv/providers/generic.ts`
+- `src/api/csv/providers/smbcCard.ts`
+- `src/scripts/csv-check.ts`
+- `docs/ai/state.md`
+
+## 確認した事実
+- `CsvImport.tsx` は旧 facade の `../api/csvParser` から `decodeFileContent` / `parseCsvText` / 型を import していた。
+- registry 側には provider 選択と正規化ロジックがあり、旧互換 API（`parseCsvText` / `detectFormat` / `toTransactionInputs`）だけが `csvParser.ts` に残っていた。
+- `npm run csvcheck` の before/after 出力 diff は空で、Format A / Format B / Shift_JIS の検証結果は変わらなかった。
+- Dexie schema は変更していないため、バックアップ導線確認が必要な作業ではなかった。
+
+## 重要な仮説
+- 旧 import を使う UI が残ると、今後 provider registry の拡張時に新旧経路の差分が再発するため、UI は registry の公開 API を直接参照するのが安全。
+- 既存スクリプトや外部的な内部参照の互換性を壊さないため、`csvParser.ts` はロジックを持たない再exportとして短期的に残すのが最小変更に合う。
+
+## 決定
+- `parseCsvText` / `detectFormat` / `ParsedTransaction` / `CsvParseResult` / `toTransactionInputs` を `src/api/csv/registry.ts` の公開 API に移し、hash 互換のため positive amount を hash 入力に使う仕様コメントを registry 側へ移した。
+- `src/components/CsvImport.tsx` は `../api/csv/registry` から直接 import するよう変更した。
+- `src/api/csvParser.ts` は 13 行の再exportのみとし、CSV parse / detect / transaction input 変換ロジックの二重定義をなくした。
+
+## 次にやること
+- `src/scripts/csv-check.ts` と `src/scripts/rule-eval.ts` も将来の別ラウンドで registry 直 import に寄せると、facade を完全削除できる。
+
+## ブロッカー
+- 現在の作業範囲にブロッカーなし。
+
+## 人間確認事項
+- 今回は後方互換のため `csvParser.ts` を再exportとして残した。完全削除する場合は、残る script import を別ラウンドで registry 直 import に変更してください。
