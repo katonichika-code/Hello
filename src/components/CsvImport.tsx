@@ -1,12 +1,19 @@
-import { useState, useRef } from 'react';
-import { bulkCreateTransactions, generateHash, getMerchantMap } from '../db/repo';
+import { useState, useRef } from "react";
+import {
+  bulkCreateTransactions,
+  generateHash,
+  getMerchantMap,
+} from "../db/repo";
 import {
   decodeFileContent,
   parseCsvText,
   type CsvFormat,
   type ParsedTransaction,
-} from '../api/csvParser';
-import { categorizeWithLearning, buildMerchantMap } from '../api/categorizationAdapter';
+} from "../api/csv/registry";
+import {
+  categorizeWithLearning,
+  buildMerchantMap,
+} from "../api/categorizationAdapter";
 
 interface ImportResult {
   inserted: number;
@@ -46,7 +53,7 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
     setResult(null);
     setError(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -85,8 +92,8 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
 
       const rowsWithCategories: PreflightRow[] = parseResult.rows.map((row) => {
         const result = categorizeWithLearning(row.description, merchantMap);
-        if (result.categorySource === 'learned') learnedCount++;
-        else if (result.categorySource === 'rule') ruleCount++;
+        if (result.categorySource === "learned") learnedCount++;
+        else if (result.categorySource === "rule") ruleCount++;
         else unknownCount++;
 
         return {
@@ -109,7 +116,11 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
         unknownCount,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'CSVファイルの読み込みに失敗しました');
+      setError(
+        err instanceof Error
+          ? err.message
+          : "CSVファイルの読み込みに失敗しました",
+      );
     }
   };
 
@@ -124,21 +135,25 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
       const transactions = await Promise.all(
         preflight.allRows.map(async (row) => {
           const positiveAmount = Math.abs(row.amount);
-          const hash = await generateHash(row.date, positiveAmount, row.description);
+          const hash = await generateHash(
+            row.date,
+            positiveAmount,
+            row.description,
+          );
           return {
             date: row.date,
             amount: -positiveAmount, // Expenses are negative
             category: row.predictedCategory,
-            account: 'card' as const,
-            wallet: 'personal' as const,
-            source: 'csv' as const,
+            account: "card" as const,
+            wallet: "personal" as const,
+            source: "csv" as const,
             description: row.description,
             hash,
             merchant_key: row.merchantKey,
             category_source: row.categorySource,
             confidence: row.confidence,
           };
-        })
+        }),
       );
 
       // Send to API
@@ -147,11 +162,11 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
       setPreflight(null);
       onImportComplete();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '取り込みに失敗しました');
+      setError(err instanceof Error ? err.message : "取り込みに失敗しました");
     } finally {
       setImporting(false);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -161,23 +176,21 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
   };
 
   const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('ja-JP', {
-      style: 'currency',
-      currency: 'JPY',
+    return new Intl.NumberFormat("ja-JP", {
+      style: "currency",
+      currency: "JPY",
     }).format(-amount); // Show as negative (expense)
   };
 
   const sourceLabel = (src: string) => {
-    if (src === 'learned') return '学習済';
-    if (src === 'rule') return 'ルール';
-    return '未分類';
+    if (src === "learned") return "学習済";
+    if (src === "rule") return "ルール";
+    return "未分類";
   };
 
   return (
     <div className="csv-import-inner">
-      <p className="csv-format">
-        対応: 標準CSV / 銀行・カード明細CSV
-      </p>
+      <p className="csv-format">対応: 標準CSV / 銀行・カード明細CSV</p>
 
       <input
         ref={fileInputRef}
@@ -191,14 +204,15 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
       {preflight && (
         <div className="preflight">
           <div className="preflight-header">
-            <strong>検出フォーマット:</strong>{' '}
-            {preflight.format === 'A' ? '標準' : '銀行・カード明細'}
+            <strong>検出フォーマット:</strong>{" "}
+            {preflight.format === "A" ? "標準" : "銀行・カード明細"}
           </div>
           <div className="preflight-count">
             <strong>取り込み件数:</strong> {preflight.totalRows}件
           </div>
           <div className="preflight-stats">
-            学習済: {preflight.learnedCount}件 | ルール: {preflight.ruleCount}件 | 未分類: {preflight.unknownCount}件
+            学習済: {preflight.learnedCount}件 | ルール: {preflight.ruleCount}件
+            | 未分類: {preflight.unknownCount}件
           </div>
 
           {preflight.preview.length > 0 && (
@@ -220,8 +234,17 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
                       <td>{row.date}</td>
                       <td className="expense">{formatAmount(row.amount)}</td>
                       <td>{row.description}</td>
-                      <td className={row.predictedCategory === 'Uncategorized' || row.predictedCategory === '未分類' ? 'uncategorized' : ''}>
-                        {row.predictedCategory === 'Uncategorized' ? '未分類' : row.predictedCategory}
+                      <td
+                        className={
+                          row.predictedCategory === "Uncategorized" ||
+                          row.predictedCategory === "未分類"
+                            ? "uncategorized"
+                            : ""
+                        }
+                      >
+                        {row.predictedCategory === "Uncategorized"
+                          ? "未分類"
+                          : row.predictedCategory}
                       </td>
                       <td className={`source-${row.categorySource}`}>
                         {sourceLabel(row.categorySource)}
@@ -239,7 +262,7 @@ export function CsvImport({ onImportComplete }: CsvImportProps) {
               disabled={importing}
               className="btn-import"
             >
-              {importing ? '取り込み中...' : '取り込む'}
+              {importing ? "取り込み中..." : "取り込む"}
             </button>
             <button
               onClick={handleCancel}
